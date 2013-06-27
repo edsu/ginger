@@ -9,8 +9,8 @@ Components
 ----------
 
 * web - a Web application and REST API
-* aaa - query for and queue work
-* bbb - checks the web for the resource
-* ccc - persists resource metadata
-* ddd - checks web archives for resource
-* eee - example importer for checking external links in Wikipedia 
+* ??? - query for and queue work
+* ??? - checks the web for the resource
+* ??? - persists resource metadata
+* ??? - checks web archives for resource
+* ??? - example importer for checking external links in Wikipedia 

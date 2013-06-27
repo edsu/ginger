@@ -1,9 +1,12 @@
 ginger
 ======
 
-Ginger is a set of programs for checking large sets of URLs in a distributed fashion using Amazon Web Services.
-Think of it as web harvesting rebooted for the cloud. If you are wondering why "ginger" it's because @eikeon
-likes golang and AWS, and ginger -- and we hope you will too.
+Ginger is a set of programs for harvesting large sets of URLs in a distributed 
+fashion using Amazon Web Services. Think of ginger as Web harvesting rebooted 
+for the cloud, so that you can reasonably rent the machines when you need them,
+and can retire them when you don't. If you are wondering why "ginger" let's 
+just say it's because @eikeon likes golang, AWS, the Web ... and ginger. We
+think you will too.
 
 Components
 ----------

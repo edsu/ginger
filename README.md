@@ -11,7 +11,7 @@ think you will too.
 Components
 ----------
 
-* web - a Web application and REST API
+* gingerweb - a Web application and REST API
 * ??? - query for and queue work
 * ??? - checks the web for the resource
 * ??? - persists resource metadata

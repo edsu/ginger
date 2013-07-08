@@ -4,14 +4,17 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"syscall"
 )
 
 func main() {
 	log.Println("started")
 
-	notifyChannel := make(chan os.Signal)
-	signal.Notify(notifyChannel, os.Interrupt)
-	<-notifyChannel
-	log.Println("stopped")
+	// We must use a buffered channel or risk missing the signal
+	notifyChannel := make(chan os.Signal, 1)
+
+	signal.Notify(notifyChannel, os.Interrupt, syscall.SIGHUP, syscall.SIGTERM)
+	sig := <-notifyChannel
+	log.Println("stopped:", sig)
 
 }

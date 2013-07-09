@@ -8,7 +8,7 @@ bower:
 	bower install
 
 bootstrap:  bower
-	mkdir -p static
+	mkdir -p static components
 	./bootstrap.sh
 	cp -r components/bootstrap/bootstrap static/
 

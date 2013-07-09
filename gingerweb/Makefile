@@ -1,8 +1,8 @@
 all:  bootstrap jquery
 
 clean:
-	rm -r static/bootstrap
-	rm -r static/jquery
+	rm -rf static/bootstrap
+	rm -rf static/jquery
 
 bower:
 	bower install

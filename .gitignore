@@ -6,6 +6,9 @@
 # Folders
 _obj
 _test
+gingerweb/components/
+gingerweb/static/bootstrap/
+gingerweb/static/jquery/
 
 # Architecture specific extensions/prefixes
 *.[568vq]

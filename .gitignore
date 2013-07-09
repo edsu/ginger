@@ -6,6 +6,7 @@
 # Folders
 _obj
 _test
+gingerweb/bower_components/
 gingerweb/components/
 gingerweb/static/bootstrap/
 gingerweb/static/jquery/

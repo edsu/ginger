@@ -8,12 +8,12 @@ bower:
 	bower install
 
 bootstrap:  bower
-	mkdir -p static components
+	mkdir -p static
 	./bootstrap.sh
-	cp -r components/bootstrap/bootstrap static/
+	cp -r bower_components/bootstrap/bootstrap static/
 
 jquery:  bower
 	mkdir -p static
-	cp -r components/jquery static/
+	cp -r bower_components/jquery static/
 
 

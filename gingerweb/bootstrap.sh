@@ -1,9 +1,7 @@
 #!/bin/bash
 
-pushd components
-git clone https://github.com/twitter/bootstrap.git
-git checkout 3.0.0-wip
-cd bootstrap
+pushd bower_components/bootstrap/
+node ../../patch.js
 npm install
 make
 make bootstrap

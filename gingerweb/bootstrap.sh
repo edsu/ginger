@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# this is called from the Makefile
+
 pushd bower_components/bootstrap/
 
 read -d '' PATCH <<-"EOF"

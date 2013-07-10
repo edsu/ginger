@@ -8,6 +8,11 @@ and can retire them when you don't. If you are wondering why "ginger" let's
 just say it's because @eikeon likes golang, AWS, the Web ... and ginger. We
 think you will too.
 
+Run
+---
+
+* git clone http://github.com/me/github
+
 Components
 ----------
 

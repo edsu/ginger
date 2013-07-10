@@ -26,6 +26,8 @@ Components
 Develop
 -------
 
+[![Build Status](https://travis-ci.org/eikeon/ginger.png?branch=master)](https://travis-ci.org/eikeon/ginger)
+
 * fork ginger on github!
 * git clone http://github.com/me/ginger
 * mkdir -p $GOPATH/src/github.com/eikeon/ginger

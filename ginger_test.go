@@ -20,7 +20,7 @@ type queue struct {
 func (q *queue) Send(message interface{}) error {
 	b, err := json.Marshal(message)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	q.messages <- string(b)
 	return nil
@@ -32,8 +32,7 @@ func (q *queue) Receive(i interface{}) error {
 		return errors.New("empty")
 	}
 	if err := json.Unmarshal([]byte(message), &i); err != nil {
-		//log.Fatal(err) TODO: a FetchResponse we can round trip
-		log.Println("ERROR:", err)
+		return err
 	}
 	return nil
 }

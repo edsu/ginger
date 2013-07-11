@@ -3,7 +3,6 @@ package ginger_test
 import (
 	"encoding/json"
 	"errors"
-	"log"
 	"net/url"
 	"testing"
 	"time"

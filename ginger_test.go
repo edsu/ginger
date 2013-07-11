@@ -49,17 +49,21 @@ func TestFetch(t *testing.T) {
 }
 
 func TestGinger(t *testing.T) {
-	requests := queue{make(chan string, 100)}
-	responses := queue{make(chan string, 100)}
-	g := ginger.NewGinger(&requests, &responses)
-	go g.Fetcher()
-	go g.Persister()
+	requests := &queue{make(chan string, 100)}
+	responses := &queue{make(chan string, 100)}
+	results := make(ginger.Results)
+	g := ginger.NewGinger(requests, responses, &results)
+
 	u, err := url.Parse("http://www.eikeon.com/")
 	if err != nil {
 		t.Error(err)
 	}
 	g.Add(u)
+
+	go ginger.Worker(requests, responses)
+	go ginger.Persister(responses, &results)
+
 	time.Sleep(1 * time.Second)
-	_, ok := g.Results["http://www.eikeon.com/"]
+	_, ok := results["http://www.eikeon.com/"]
 	assert.Equal(t, ok, true)
 }

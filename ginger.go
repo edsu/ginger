@@ -36,11 +36,11 @@ type Results map[string]Result
 type Ginger struct {
 	requests  Queue
 	responses Queue
-	Results   Results
+	Results   *Results
 }
 
-func NewGinger(requests, responses Queue) *Ginger {
-	return &Ginger{requests, responses, make(Results)}
+func NewGinger(requests, responses Queue, results *Results) *Ginger {
+	return &Ginger{requests, responses, results}
 }
 
 func (g *Ginger) Greeting() string {
@@ -51,27 +51,27 @@ func (g *Ginger) Add(url *url.URL) {
 	g.requests.Send(&FetchRequest{url})
 }
 
-func (g *Ginger) Fetcher() {
+func Worker(requests, responses Queue) {
 	for {
 		var request FetchRequest
-		err := g.requests.Receive(&request)
+		err := requests.Receive(&request)
 		if err != nil {
 			log.Println("Done fetching")
 			break
 		}
 		response := request.Fetch()
-		g.responses.Send(response)
+		responses.Send(response)
 	}
 }
 
-func (g *Ginger) Persister() {
+func Persister(responses Queue, results *Results) {
 	for {
 		var response FetchResponse
-		err := g.responses.Receive(&response)
+		err := responses.Receive(&response)
 		if err != nil {
 			log.Println("done persisting")
 			break
 		}
-		g.Results[response.Response.Request.URL.String()] = Result{response.Response.StatusCode, response.Response.ContentLength}
+		(*results)[response.Response.Request.URL.String()] = Result{response.Response.StatusCode, response.Response.ContentLength}
 	}
 }

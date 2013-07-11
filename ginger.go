@@ -15,11 +15,13 @@ func (req *FetchRequest) Fetch() *FetchResponse {
 	if err != nil {
 		log.Fatal(err)
 	}
-	return &FetchResponse{response}
+	return &FetchResponse{response.StatusCode, response.ContentLength, req}
 }
 
 type FetchResponse struct {
-	Response *http.Response
+	StatusCode    int
+	ContentLength int64
+	Request       *FetchRequest
 }
 
 type Queue interface {
@@ -72,6 +74,6 @@ func Persister(responses Queue, results *Results) {
 			log.Println("done persisting")
 			break
 		}
-		(*results)[response.Response.Request.URL.String()] = Result{response.Response.StatusCode, response.Response.ContentLength}
+		(*results)[response.Request.URL.String()] = Result{response.StatusCode, response.ContentLength}
 	}
 }

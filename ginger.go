@@ -49,8 +49,12 @@ func (g *Ginger) Greeting() string {
 	return "Hello, world!"
 }
 
-func (g *Ginger) Add(url *url.URL) {
-	g.requests.Send(&FetchRequest{url})
+func (g *Ginger) Add(urlString string) error {
+	u, err := url.Parse(urlString)
+	if err == nil {
+		g.requests.Send(&FetchRequest{u})
+	}
+	return err
 }
 
 func Worker(requests, responses Queue) {

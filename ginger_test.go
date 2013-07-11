@@ -45,7 +45,7 @@ func TestFetch(t *testing.T) {
 	}
 	req := &ginger.FetchRequest{u}
 	response := req.Fetch()
-	assert.Equal(t, response.Response.StatusCode, 200)
+	assert.Equal(t, response.StatusCode, 200)
 }
 
 func TestGinger(t *testing.T) {

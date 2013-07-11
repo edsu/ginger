@@ -47,17 +47,16 @@ func TestFetch(t *testing.T) {
 	assert.Equal(t, response.StatusCode, 200)
 }
 
-func TestGinger(t *testing.T) {
+func TestAdd(t *testing.T) {
 	requests := &queue{make(chan string, 100)}
 	responses := &queue{make(chan string, 100)}
 	results := make(ginger.Results)
 	g := ginger.NewGinger(requests, responses, &results)
+	err := g.Add("http://www.eikeon.com/")
 
-	u, err := url.Parse("http://www.eikeon.com/")
 	if err != nil {
-		t.Error(err)
+		t.Error("unable to fetch http://eikeon.com/")
 	}
-	g.Add(u)
 
 	go ginger.Worker(requests, responses)
 	go ginger.Persister(responses, &results)

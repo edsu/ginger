@@ -23,10 +23,8 @@ Components
 * ??? - checks web archives for resource
 * ??? - example importer for checking external links in Wikipedia 
 
-Develop
+Develop [![Build Status](https://api.travis-ci.org/eikeon/ginger.png?branch=master)](https://travis-ci.org/eikeon/ginger)
 -------
-
-[![Build Status](https://api.travis-ci.org/eikeon/ginger.png?branch=master)](https://travis-ci.org/eikeon/ginger)
 
 * fork ginger on github!
 * git clone http://github.com/me/ginger

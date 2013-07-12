@@ -36,6 +36,16 @@ func (q *queue) Receive(i interface{}) error {
 	return nil
 }
 
+// an in memory ginger.DB implementation
+type db struct {
+	responses []ginger.FetchResponse
+}
+
+func (b *db) Save(r ginger.FetchResponse) error {
+	b.responses = append(b.responses, r)
+	return nil
+}
+
 func TestFetch(t *testing.T) {
 	u, err := url.Parse("http://www.eikeon.com/")
 	if err != nil {
@@ -49,8 +59,8 @@ func TestFetch(t *testing.T) {
 func TestAdd(t *testing.T) {
 	requests := &queue{make(chan string, 100)}
 	responses := &queue{make(chan string, 100)}
-	results := make(ginger.Results)
-	g := ginger.NewGinger(requests, responses, &results)
+	db := &db{}
+	g := ginger.NewGinger(requests, responses, db)
 	err := g.Add("http://www.eikeon.com/")
 
 	if err != nil {
@@ -58,9 +68,14 @@ func TestAdd(t *testing.T) {
 	}
 
 	go ginger.Worker(requests, responses)
-	go ginger.Persister(responses, &results)
+	go ginger.Persister(responses, db)
 
 	time.Sleep(1 * time.Second)
-	_, ok := results["http://www.eikeon.com/"]
-	assert.Equal(t, ok, true)
+	for _, fr := range db.responses {
+		if fr.Request.URL.String() == "http://www.eikeon.com/" {
+			goto found
+		}
+	}
+	t.Error("Didn't find expected result")
+found:
 }

@@ -29,20 +29,18 @@ type Queue interface {
 	Receive(message interface{}) error
 }
 
-type Result struct {
-	StatusCode    int
-	ContentLength int64
+type DB interface {
+	Save(FetchResponse) error
 }
-type Results map[string]Result
 
 type Ginger struct {
 	requests  Queue
 	responses Queue
-	Results   *Results
+	db        DB
 }
 
-func NewGinger(requests, responses Queue, results *Results) *Ginger {
-	return &Ginger{requests, responses, results}
+func NewGinger(requests, responses Queue, db DB) *Ginger {
+	return &Ginger{requests, responses, db}
 }
 
 func (g *Ginger) Greeting() string {
@@ -70,7 +68,7 @@ func Worker(requests, responses Queue) {
 	}
 }
 
-func Persister(responses Queue, results *Results) {
+func Persister(responses Queue, db DB) {
 	for {
 		var response FetchResponse
 		err := responses.Receive(&response)
@@ -78,6 +76,6 @@ func Persister(responses Queue, results *Results) {
 			log.Println("done persisting")
 			break
 		}
-		(*results)[response.Request.URL.String()] = Result{response.StatusCode, response.ContentLength}
+		db.Save(response)
 	}
 }

@@ -4,6 +4,9 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+
+	"github.com/eikeon/ginger/db"
+	"github.com/eikeon/ginger/queue"
 )
 
 type FetchRequest struct {
@@ -24,41 +27,13 @@ type FetchResponse struct {
 	Request       *FetchRequest
 }
 
-type Queue interface {
-	Send(message interface{}) error
-	Receive(message interface{}) error
-}
-
-type KeySchema []KeySchemaElement
-
-type Table struct {
-	TableName            string
-	KeySchema            KeySchema
-	AttributeDefinitions []AttributeDefinition
-}
-
-type KeySchemaElement struct {
-	AttributeName string
-	KeyType       string
-}
-
-type AttributeDefinition struct {
-	Name string
-	Type string
-}
-
-type DB interface {
-	CreateTable(name string, attributeDefinitions []AttributeDefinition, keySchema KeySchema)
-	Put(tableName string, r FetchResponse) error
-}
-
 type Ginger struct {
-	requests  Queue
-	responses Queue
-	db        DB
+	requests  queue.Queue
+	responses queue.Queue
+	db        db.DB
 }
 
-func NewGinger(requests, responses Queue, db DB) *Ginger {
+func NewGinger(requests, responses queue.Queue, db db.DB) *Ginger {
 	return &Ginger{requests, responses, db}
 }
 
@@ -74,7 +49,7 @@ func (g *Ginger) Add(URL string) error {
 	return err
 }
 
-func Worker(requests, responses Queue) {
+func Worker(requests, responses queue.Queue) {
 	for {
 		var request FetchRequest
 		err := requests.Receive(&request)
@@ -87,7 +62,7 @@ func Worker(requests, responses Queue) {
 	}
 }
 
-func Persister(responses Queue, db DB) {
+func Persister(responses queue.Queue, db db.DB) {
 	for {
 		var response FetchResponse
 		err := responses.Receive(&response)

@@ -14,7 +14,11 @@ import (
 	"path"
 	"syscall"
 
+	"code.google.com/p/go.net/websocket"
+
 	"github.com/eikeon/ginger"
+	"github.com/eikeon/ginger/db"
+	"github.com/eikeon/ginger/queue"
 )
 
 var site = template.Must(template.ParseFiles("templates/site.html"))
@@ -65,14 +69,60 @@ func main() {
 
 	log.Println("started")
 
-	g := &ginger.Ginger{}
-
-	HandleTemplate("/", "home", Data{"Ginger": g})
+	requests := queue.NewChannelQueue(nil)
+	responses := queue.NewChannelQueue(nil)
+	mdb := &db.MemoryDB{}
+	mdb.CreateTable("collection", []db.AttributeDefinition{}, db.KeySchema{})
+	mdb.CreateTable("fetchresponse", []db.AttributeDefinition{}, db.KeySchema{})
+	g := ginger.NewGinger(requests, responses, mdb)
 
 	fs := http.FileServer(http.Dir(path.Join(*root, "static/")))
 	http.Handle("/bootstrap/", fs)
 	http.Handle("/jquery/", fs)
 	http.Handle("/js/", fs)
+
+	HandleTemplate("/", "home", Data{"Ginger": g})
+	HandleTemplate("/collection/", "collection", Data{"Ginger": g})
+	http.HandleFunc("/collection/add", func(w http.ResponseWriter, req *http.Request) {
+		if req.Method == "POST" {
+			if err := req.ParseForm(); err == nil {
+				name, ok := req.Form["name"]
+				if ok {
+					if err := g.AddCollection(name[0], req.RemoteAddr); err != nil {
+						log.Println("Error adding collection:", err)
+					} else {
+						http.Redirect(w, req, req.URL.Path+"/", http.StatusCreated)
+					}
+				}
+			}
+			// TODO: write a response
+		} else {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+	http.Handle("/state", websocket.Handler(func(ws *websocket.Conn) {
+		go func() {
+			for {
+				var msg map[string]interface{}
+				if err := websocket.JSON.Receive(ws, &msg); err == nil {
+					log.Printf("ignoring: %#v\n", msg)
+				} else {
+					log.Println("State Websocket receive err:", err)
+					return
+				}
+			}
+		}()
+		for {
+			state := struct {
+				Collections []ginger.Collection
+			}{g.Collections()}
+			if err := websocket.JSON.Send(ws, state); err != nil {
+				log.Println("State Websocket send err:", err)
+				return
+			}
+			g.WaitStateChanged()
+		}
+	}))
 
 	go func() {
 		log.Println("starting server on:", *address)

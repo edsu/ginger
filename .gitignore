@@ -9,6 +9,7 @@ _test
 gingerweb/bower_components/
 gingerweb/static/bootstrap/
 gingerweb/static/jquery/
+gingerweb/static/js/
 
 # Architecture specific extensions/prefixes
 *.[568vq]

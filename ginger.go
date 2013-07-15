@@ -29,8 +29,27 @@ type Queue interface {
 	Receive(message interface{}) error
 }
 
+type KeySchema []KeySchemaElement
+
+type Table struct {
+	TableName            string
+	KeySchema            KeySchema
+	AttributeDefinitions []AttributeDefinition
+}
+
+type KeySchemaElement struct {
+	AttributeName string
+	KeyType       string
+}
+
+type AttributeDefinition struct {
+	Name string
+	Type string
+}
+
 type DB interface {
-	Save(FetchResponse) error
+	CreateTable(name string, attributeDefinitions []AttributeDefinition, keySchema KeySchema)
+	Put(tableName string, r FetchResponse) error
 }
 
 type Ginger struct {
@@ -76,6 +95,6 @@ func Persister(responses Queue, db DB) {
 			log.Println("done persisting")
 			break
 		}
-		db.Save(response)
+		db.Put("fetchresponse", response)
 	}
 }

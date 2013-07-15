@@ -36,13 +36,32 @@ func (q *queue) Receive(i interface{}) error {
 	return nil
 }
 
-// an in memory ginger.DB implementation
-type db struct {
+type table struct {
 	responses []ginger.FetchResponse
 }
 
-func (b *db) Save(r ginger.FetchResponse) error {
-	b.responses = append(b.responses, r)
+// an in memory ginger.DB implementation
+type db struct {
+	tables map[string]*table
+}
+
+func (b *db) CreateTable(name string, attributeDefinitions []ginger.AttributeDefinition, keySchema ginger.KeySchema) {
+	if b.tables == nil {
+		b.tables = make(map[string]*table)
+	}
+	b.tables[name] = &table{}
+}
+
+func (b *db) Put(tableName string, r ginger.FetchResponse) error {
+	if b.tables == nil {
+		return errors.New("no tables")
+	}
+	t, ok := b.tables[tableName]
+	if !ok {
+		t = &table{}
+		b.tables[tableName] = t
+	}
+	t.responses = append(t.responses, r)
 	return nil
 }
 
@@ -60,6 +79,7 @@ func TestAdd(t *testing.T) {
 	requests := &queue{make(chan string, 100)}
 	responses := &queue{make(chan string, 100)}
 	db := &db{}
+	db.CreateTable("fetchresponse", []ginger.AttributeDefinition{}, ginger.KeySchema{})
 	g := ginger.NewGinger(requests, responses, db)
 	err := g.Add("http://www.eikeon.com/")
 
@@ -71,7 +91,7 @@ func TestAdd(t *testing.T) {
 	go ginger.Persister(responses, db)
 
 	time.Sleep(1 * time.Second)
-	for _, fr := range db.responses {
+	for _, fr := range db.tables["fetchresponse"].responses {
 		if fr.Request.URL.String() == "http://www.eikeon.com/" {
 			goto found
 		}

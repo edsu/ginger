@@ -25,12 +25,13 @@ type AttributeDefinition struct {
 type DB interface {
 	CreateTable(name string, attributeDefinitions []AttributeDefinition, keySchema KeySchema)
 	Put(tableName string, r interface{}) error
+	Scan(tableName string) ([]interface{}, error)
 }
 
 // an in memory ginger.DB implementation
 
 type table struct {
-	responses []interface{}
+	items []interface{}
 }
 
 type MemoryDB struct {
@@ -53,7 +54,7 @@ func (b *MemoryDB) Put(tableName string, r interface{}) error {
 		t = &table{}
 		b.tables[tableName] = t
 	}
-	t.responses = append(t.responses, r)
+	t.items = append(t.items, r)
 	return nil
 }
 
@@ -65,5 +66,5 @@ func (b *MemoryDB) Scan(tableName string) ([]interface{}, error) {
 	if !ok {
 		return nil, errors.New("no such table")
 	}
-	return t.responses, nil
+	return t.items, nil
 }

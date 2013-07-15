@@ -83,7 +83,7 @@ func main() {
 
 	HandleTemplate("/", "home", Data{"Ginger": g})
 	HandleTemplate("/collection/", "collection", Data{"Ginger": g})
-	http.HandleFunc("/collection/add", func(w http.ResponseWriter, req *http.Request) {
+	http.HandleFunc("/collection", func(w http.ResponseWriter, req *http.Request) {
 		if req.Method == "POST" {
 			if err := req.ParseForm(); err == nil {
 				name, ok := req.Form["name"]

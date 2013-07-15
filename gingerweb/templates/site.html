@@ -49,7 +49,7 @@ function GingerCtrl($scope) {
 
     $scope.addCollection = function(name) {
 	$.ajax({
-	    url: "/collection/add?" + $.now(),
+	    url: "/collection?" + $.now(),
 	    type: "POST",
 	    cache: false,
 	    data: {

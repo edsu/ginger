@@ -4,4 +4,4 @@ go:
 - tip
 script:
   - go list -f '{{range .XTestImports}}{{.}}{{"\n"}}{{end}}' | xargs go get
-  - go test
+  - go test ./...

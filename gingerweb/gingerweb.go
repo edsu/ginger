@@ -33,6 +33,20 @@ func makeTemplate(names ...string) *template.Template {
 
 type Data map[string]interface{}
 
+func WriteTemplate(t *template.Template, d Data, w http.ResponseWriter) {
+	var bw bytes.Buffer
+	h := md5.New()
+	mw := io.MultiWriter(&bw, h)
+	err := t.ExecuteTemplate(mw, "html", d)
+	if err == nil {
+		w.Header().Set("ETag", fmt.Sprintf(`"%x"`, h.Sum(nil)))
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", bw.Len()))
+		w.Write(bw.Bytes())
+	} else {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 func HandleTemplate(prefix, name string, data Data) {
 	t := makeTemplate("templates/" + name + ".html")
 	http.HandleFunc(prefix, func(w http.ResponseWriter, req *http.Request) {
@@ -48,17 +62,7 @@ func HandleTemplate(prefix, name string, data Data) {
 			w.Header().Set("Cache-Control", "max-age=10, must-revalidate")
 			w.WriteHeader(http.StatusNotFound)
 		}
-		var bw bytes.Buffer
-		h := md5.New()
-		mw := io.MultiWriter(&bw, h)
-		err := t.ExecuteTemplate(mw, "html", d)
-		if err == nil {
-			w.Header().Set("ETag", fmt.Sprintf(`"%x"`, h.Sum(nil)))
-			w.Header().Set("Content-Length", fmt.Sprintf("%d", bw.Len()))
-			w.Write(bw.Bytes())
-		} else {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
+		WriteTemplate(t, d, w)
 	})
 }
 
@@ -82,9 +86,36 @@ func main() {
 	http.Handle("/js/", fs)
 
 	HandleTemplate("/", "home", Data{"Ginger": g})
-	HandleTemplate("/collection/", "collection", Data{"Ginger": g})
-	http.HandleFunc("/collection", func(w http.ResponseWriter, req *http.Request) {
-		if req.Method == "POST" {
+	data := Data{"Ginger": g}
+	collectionsTemplate := makeTemplate("templates/" + "collections" + ".html")
+	collectionTemplate := makeTemplate("templates/" + "collection" + ".html")
+	http.HandleFunc("/collection/", func(w http.ResponseWriter, req *http.Request) {
+		if req.Method == "GET" {
+			d := Data{}
+			if data != nil {
+				for k, v := range data {
+					d[k] = v
+				}
+			}
+			dir, file := path.Split(req.URL.Path)
+			name := path.Base(req.URL.Path)
+			log.Println("dir:", dir, "file:", file, "name:", name)
+			if dir == "/collection/" && file == "" {
+				d["Found"] = true
+				WriteTemplate(collectionsTemplate, d, w)
+			} else if name != "" {
+				d["Found"] = true
+				for _, collection := range g.Collections() {
+					if collection.Name == name {
+						d["Collection"] = collection
+					}
+				}
+				WriteTemplate(collectionTemplate, d, w)
+			} else {
+				w.Header().Set("Cache-Control", "max-age=10, must-revalidate")
+				w.WriteHeader(http.StatusNotFound)
+			}
+		} else if req.Method == "POST" {
 			if err := req.ParseForm(); err == nil {
 				name, ok := req.Form["name"]
 				if ok {

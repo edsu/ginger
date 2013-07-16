@@ -4,18 +4,10 @@
 
   <div class="row-fluid">
     <div class="span3">
-      <h2>Collections</h2>
+      <h2>{{.Collection.Name}} <small>Collection</small></h2>
       <p>
-	<a ng-repeat="collection in state.Collections" class="btn btn-large btn-block btn-primary"
-	   href="/collection/[[collection.Name]]/">[[collection.Name]] ([[collection.RequestedBy]])</a>
+	{{.Collection.RequestedBy}}
       </p>
-      <form ng-submit="addCollection(collectionName)" autocomplete="off">
-	<fieldset>
-	  <input class="input-block-level" type="text" typeahead="collection.Name for collection in state.Collections | filter:$viewValue" ng-model="collectionName" placeholder="collection name">
-	  <input type="hidden" ng-model="state.Collection">
-	  <!--<button type="submit" class="btn">Add</button>-->
-	</fieldset>
-      </form>
     </div>
   </div>
 

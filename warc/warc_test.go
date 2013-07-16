@@ -10,7 +10,7 @@ import (
 )
 
 func TestReader(t *testing.T) {
-	f, err := os.OpenFile("test.warc.gz", os.O_RDONLY, 0666)
+	f, err := os.OpenFile("testdata/test.warc.gz", os.O_RDONLY, 0666)
 	if err != nil {
 		t.Error(err)
 		t.FailNow()

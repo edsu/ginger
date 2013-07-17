@@ -6,10 +6,10 @@
 # Folders
 _obj
 _test
-gingerweb/bower_components/
-gingerweb/static/bootstrap/
-gingerweb/static/jquery/
-gingerweb/static/js/
+web/bower_components/
+web/static/bootstrap/
+web/static/jquery/
+web/static/js/
 
 # Architecture specific extensions/prefixes
 *.[568vq]

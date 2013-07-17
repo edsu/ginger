@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/md5"
 	"fmt"
+	"go/build"
 	"html/template"
 	"io"
 	"log"
@@ -17,14 +18,25 @@ import (
 	"github.com/eikeon/ginger"
 )
 
-var site = template.Must(template.ParseFiles("templates/site.html"))
+var Root string
+var site *template.Template
 
-func makeTemplate(names ...string) *template.Template {
+func init() {
+	p, err := build.Default.Import("github.com/eikeon/ginger/web", "", build.FindOnly)
+	if err != nil {
+		log.Fatal("could not import package:", err)
+	}
+	Root = p.Dir
+}
+func makeTemplate(name string) *template.Template {
+	if site == nil {
+		site = template.Must(template.ParseFiles(path.Join(Root, "templates/site.html")))
+	}
 	t, err := site.Clone()
 	if err != nil {
 		log.Fatal("cloning site: ", err)
 	}
-	return template.Must(t.ParseFiles(names...))
+	return template.Must(t.ParseFiles(path.Join(Root, name)))
 }
 
 type Data map[string]interface{}
@@ -62,12 +74,12 @@ func HandleTemplate(prefix, name string, data Data) {
 	})
 }
 
-func Server(address string, root string) {
+func Server(address string) {
 	log.Println("started")
 
 	g := ginger.NewMemoryGinger()
 
-	fs := http.FileServer(http.Dir(path.Join(root, "static/")))
+	fs := http.FileServer(http.Dir(path.Join(Root, "static/")))
 	http.Handle("/bootstrap/", fs)
 	http.Handle("/jquery/", fs)
 	http.Handle("/js/", fs)

@@ -9,10 +9,7 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"os"
-	"os/signal"
 	"path"
-	"syscall"
 
 	"code.google.com/p/go.net/websocket"
 	"github.com/eikeon/ginger"
@@ -74,11 +71,7 @@ func HandleTemplate(prefix, name string, data Data) {
 	})
 }
 
-func Server(address string) {
-	log.Println("started")
-
-	g := ginger.NewMemoryGinger()
-
+func AddHandlers(g *ginger.Ginger) {
 	fs := http.FileServer(http.Dir(path.Join(Root, "static/")))
 	http.Handle("/bootstrap/", fs)
 	http.Handle("/jquery/", fs)
@@ -98,7 +91,6 @@ func Server(address string) {
 			}
 			dir, file := path.Split(req.URL.Path)
 			name := path.Base(req.URL.Path)
-			log.Println("dir:", dir, "file:", file, "name:", name)
 			if dir == "/collection/" && file == "" {
 				d["Found"] = true
 				WriteTemplate(collectionsTemplate, d, w)
@@ -154,17 +146,4 @@ func Server(address string) {
 		}
 	}))
 
-	go func() {
-		err := http.ListenAndServe(address, nil)
-		if err != nil {
-			log.Print("ListenAndServe:", err)
-		}
-	}()
-
-	// We must use a buffered channel or risk missing the signal
-	notifyChannel := make(chan os.Signal, 1)
-
-	signal.Notify(notifyChannel, os.Interrupt, syscall.SIGHUP, syscall.SIGTERM)
-	sig := <-notifyChannel
-	log.Println("stopped:", sig)
 }

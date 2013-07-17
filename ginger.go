@@ -5,13 +5,16 @@ import (
 	"net/http"
 	"net/url"
 	"sync"
+	"time"
 
 	"github.com/eikeon/ginger/db"
 	"github.com/eikeon/ginger/queue"
 )
 
 type FetchRequest struct {
-	URL *url.URL
+	db          db.DB
+	URL         *url.URL
+	RequestedOn string
 }
 
 func (req *FetchRequest) Fetch() *FetchResponse {
@@ -22,10 +25,34 @@ func (req *FetchRequest) Fetch() *FetchResponse {
 	return &FetchResponse{response.StatusCode, response.ContentLength, req}
 }
 
+func (req *FetchRequest) Put() error {
+	return req.db.Put("fetchrequest", *req)
+}
+
 type FetchResponse struct {
 	StatusCode    int
 	ContentLength int64
 	Request       *FetchRequest
+}
+
+type Collection struct {
+	db          db.DB
+	Name        string
+	RequestedBy string
+}
+
+func (c *Collection) Add(URL string, requestedBy string) error {
+	u, err := url.Parse(URL)
+	if err == nil {
+		t := time.Now()
+		f := &FetchRequest{c.db, u, t.Format(time.RFC3339Nano)}
+		f.Put()
+	}
+	return err
+}
+
+func (c *Collection) Put() error {
+	return c.db.Put("collection", *c)
 }
 
 type Ginger struct {
@@ -39,11 +66,6 @@ func NewGinger(requests, responses queue.Queue, db db.DB) *Ginger {
 	return &Ginger{requests, responses, db, nil}
 }
 
-type Collection struct {
-	Name        string
-	RequestedBy string
-}
-
 func (g *Ginger) Collections() (collection []Collection) {
 	items, err := g.db.Scan("collection")
 	if err != nil {
@@ -55,18 +77,11 @@ func (g *Ginger) Collections() (collection []Collection) {
 	return
 }
 
-func (g *Ginger) AddCollection(name string, requestedBy string) error {
-	g.db.Put("collection", Collection{name, requestedBy})
+func (g *Ginger) AddCollection(name string, requestedBy string) (*Collection, error) {
+	c := &Collection{g.db, name, requestedBy}
+	c.Put()
 	g.StateChanged()
-	return nil
-}
-
-func (g *Ginger) Add(URL string) error {
-	u, err := url.Parse(URL)
-	if err == nil {
-		g.requests.Send(&FetchRequest{u})
-	}
-	return err
+	return c, nil
 }
 
 func (m *Ginger) getStateCond() *sync.Cond {
@@ -88,6 +103,16 @@ func (m *Ginger) WaitStateChanged() {
 	c.L.Lock()
 	c.Wait()
 	c.L.Unlock()
+}
+
+func Qer(db db.DB, requests queue.Queue) {
+	items, err := db.Scan("fetchrequest")
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, i := range items {
+		requests.Send(i)
+	}
 }
 
 func Worker(requests, responses queue.Queue) {

@@ -1,7 +1,6 @@
 package ginger_test
 
 import (
-	"net/url"
 	"testing"
 	"time"
 
@@ -11,27 +10,21 @@ import (
 	"github.com/eikeon/ginger/queue"
 )
 
-func TestFetch(t *testing.T) {
-	u, err := url.Parse("http://www.eikeon.com/")
-	if err != nil {
-		t.Error(err)
-	}
-	req := &ginger.FetchRequest{u}
-	response := req.Fetch()
-	assert.Equal(t, response.StatusCode, 200)
-}
-
-func TestAdd(t *testing.T) {
+func TestGinger(t *testing.T) {
 	requests := queue.NewChannelQueue(nil)
 	responses := queue.NewChannelQueue(nil)
 	mdb := &db.MemoryDB{}
 	mdb.CreateTable("fetchresponse", []db.AttributeDefinition{}, db.KeySchema{})
 	g := ginger.NewGinger(requests, responses, mdb)
-	err := g.Add("http://www.eikeon.com/")
+	c, err := g.AddCollection("testCollection", "me")
+	assert.Equal(t, err, nil)
+	err = c.Add("http://www.eikeon.com/", "me")
 
 	if err != nil {
 		t.Error("unable to fetch http://eikeon.com/")
 	}
+
+	ginger.Qer(mdb, requests)
 
 	go ginger.Worker(requests, responses)
 	go ginger.Persister(responses, mdb)

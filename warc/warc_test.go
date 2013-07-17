@@ -10,19 +10,13 @@ import (
 )
 
 func TestReader(t *testing.T) {
-	f, err := os.OpenFile("testdata/test.warc.gz", os.O_RDONLY, 0666)
-	if err != nil {
-		t.Error(err)
-		t.FailNow()
-	}
-	gr, err := gzip.NewReader(f)
-	assert.Equal(t, err, nil)
+	f, _ := os.OpenFile("testdata/test.warc.gz", os.O_RDONLY, 0666)
+	gz, _ := gzip.NewReader(f)
 
-	wr := warc.NewWarcReader(gr)
+	wr := warc.NewWarcReader(gz)
 	vr, err := wr.ReadRecord()
 	if err != nil {
 		t.Error(err)
-		t.FailNow()
 	}
 	assert.Equal(t, vr.Version, "WARC/1.0")
 }

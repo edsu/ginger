@@ -11,32 +11,28 @@ import (
 	"github.com/eikeon/ginger/queue"
 )
 
-type FetchRequest struct {
-	db          db.DB
+var DB db.DB
+
+type Fetch struct {
 	URL         *url.URL
 	RequestedOn string
+	Response    *FetchResponse
 }
 
-func (req *FetchRequest) Fetch() *FetchResponse {
-	response, err := http.Get(req.URL.String())
-	if err != nil {
-		log.Fatal(err)
-	}
-	return &FetchResponse{response.StatusCode, response.ContentLength, req}
+func (req *Fetch) Put() error {
+	return DB.Put("fetch", *req)
 }
 
-func (req *FetchRequest) Put() error {
-	return req.db.Put("fetchrequest", *req)
+func (req *Fetch) Update() error {
+	return req.Put()
 }
 
 type FetchResponse struct {
 	StatusCode    int
 	ContentLength int64
-	Request       *FetchRequest
 }
 
 type Collection struct {
-	db          db.DB
 	Name        string
 	RequestedBy string
 }
@@ -45,29 +41,29 @@ func (c *Collection) Add(URL string, requestedBy string) error {
 	u, err := url.Parse(URL)
 	if err == nil {
 		t := time.Now()
-		f := &FetchRequest{c.db, u, t.Format(time.RFC3339Nano)}
+		f := &Fetch{u, t.Format(time.RFC3339Nano), nil}
 		f.Put()
 	}
 	return err
 }
 
 func (c *Collection) Put() error {
-	return c.db.Put("collection", *c)
+	return DB.Put("collection", *c)
 }
 
 type Ginger struct {
-	requests  queue.Queue
-	responses queue.Queue
-	db        db.DB
-	cond      *sync.Cond // a rendezvous point for goroutines waiting for or announcing state changed
+	cond *sync.Cond // a rendezvous point for goroutines waiting for or announcing state changed
 }
 
-func NewGinger(requests, responses queue.Queue, db db.DB) *Ginger {
-	return &Ginger{requests, responses, db, nil}
+func NewMemoryGinger() *Ginger {
+	DB = &db.MemoryDB{}
+	DB.CreateTable("fetch", []db.AttributeDefinition{}, db.KeySchema{})
+	DB.CreateTable("collection", []db.AttributeDefinition{}, db.KeySchema{})
+	return &Ginger{}
 }
 
 func (g *Ginger) Collections() (collection []Collection) {
-	items, err := g.db.Scan("collection")
+	items, err := DB.Scan("collection")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -78,8 +74,10 @@ func (g *Ginger) Collections() (collection []Collection) {
 }
 
 func (g *Ginger) AddCollection(name string, requestedBy string) (*Collection, error) {
-	c := &Collection{g.db, name, requestedBy}
-	c.Put()
+	c := &Collection{name, requestedBy}
+	if err := c.Put(); err != nil {
+		return nil, err
+	}
 	g.StateChanged()
 	return c, nil
 }
@@ -105,8 +103,8 @@ func (m *Ginger) WaitStateChanged() {
 	c.L.Unlock()
 }
 
-func Qer(db db.DB, requests queue.Queue) {
-	items, err := db.Scan("fetchrequest")
+func Qer(requests queue.Queue) {
+	items, err := DB.Scan("fetch")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -115,27 +113,19 @@ func Qer(db db.DB, requests queue.Queue) {
 	}
 }
 
-func Worker(requests, responses queue.Queue) {
+func Worker(requests queue.Queue) {
 	for {
-		var request FetchRequest
-		err := requests.Receive(&request)
+		var fetch Fetch
+		err := requests.Receive(&fetch)
 		if err != nil {
 			log.Println("Done fetching")
 			break
 		}
-		response := request.Fetch()
-		responses.Send(response)
-	}
-}
-
-func Persister(responses queue.Queue, db db.DB) {
-	for {
-		var response FetchResponse
-		err := responses.Receive(&response)
+		r, err := http.Get(fetch.URL.String())
 		if err != nil {
-			log.Println("done persisting")
-			break
+			log.Fatal(err)
 		}
-		db.Put("fetchresponse", response)
+		fetch.Response = &FetchResponse{r.StatusCode, r.ContentLength}
+		fetch.Update()
 	}
 }

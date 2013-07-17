@@ -17,8 +17,6 @@ import (
 	"code.google.com/p/go.net/websocket"
 
 	"github.com/eikeon/ginger"
-	"github.com/eikeon/ginger/db"
-	"github.com/eikeon/ginger/queue"
 )
 
 var site = template.Must(template.ParseFiles("templates/site.html"))
@@ -73,12 +71,7 @@ func main() {
 
 	log.Println("started")
 
-	requests := queue.NewChannelQueue(nil)
-	responses := queue.NewChannelQueue(nil)
-	mdb := &db.MemoryDB{}
-	mdb.CreateTable("collection", []db.AttributeDefinition{}, db.KeySchema{})
-	mdb.CreateTable("fetchresponse", []db.AttributeDefinition{}, db.KeySchema{})
-	g := ginger.NewGinger(requests, responses, mdb)
+	g := ginger.NewMemoryGinger()
 
 	fs := http.FileServer(http.Dir(path.Join(*root, "static/")))
 	http.Handle("/bootstrap/", fs)
@@ -119,7 +112,7 @@ func main() {
 			if err := req.ParseForm(); err == nil {
 				name, ok := req.Form["name"]
 				if ok {
-					if err := g.AddCollection(name[0], req.RemoteAddr); err != nil {
+					if _, err := g.AddCollection(name[0], req.RemoteAddr); err != nil {
 						log.Println("Error adding collection:", err)
 					} else {
 						http.Redirect(w, req, req.URL.Path+"/", http.StatusCreated)

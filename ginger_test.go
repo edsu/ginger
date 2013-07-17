@@ -6,16 +6,12 @@ import (
 
 	"github.com/bmizerany/assert"
 	"github.com/eikeon/ginger"
-	"github.com/eikeon/ginger/db"
 	"github.com/eikeon/ginger/queue"
 )
 
 func TestGinger(t *testing.T) {
 	requests := queue.NewChannelQueue(nil)
-	responses := queue.NewChannelQueue(nil)
-	mdb := &db.MemoryDB{}
-	mdb.CreateTable("fetchresponse", []db.AttributeDefinition{}, db.KeySchema{})
-	g := ginger.NewGinger(requests, responses, mdb)
+	g := ginger.NewMemoryGinger()
 	c, err := g.AddCollection("testCollection", "me")
 	assert.Equal(t, err, nil)
 	err = c.Add("http://www.eikeon.com/", "me")
@@ -24,16 +20,18 @@ func TestGinger(t *testing.T) {
 		t.Error("unable to fetch http://eikeon.com/")
 	}
 
-	ginger.Qer(mdb, requests)
+	ginger.Qer(requests)
 
-	go ginger.Worker(requests, responses)
-	go ginger.Persister(responses, mdb)
+	go ginger.Worker(requests)
 
 	time.Sleep(1 * time.Second)
-	if responses, err := mdb.Scan("fetchresponse"); err == nil {
-		for _, fr := range responses {
-			if fr.(ginger.FetchResponse).Request.URL.String() == "http://www.eikeon.com/" {
-				goto found
+	if responses, err := ginger.DB.Scan("fetch"); err == nil {
+		for _, r := range responses {
+			f := r.(ginger.Fetch)
+			if f.URL.String() == "http://www.eikeon.com/" {
+				if f.Response != nil && f.Response.StatusCode != 0 {
+					goto found
+				}
 			}
 		}
 	} else {

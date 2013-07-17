@@ -51,8 +51,7 @@ func (b *MemoryDB) Put(tableName string, r interface{}) error {
 	}
 	t, ok := b.tables[tableName]
 	if !ok {
-		t = &table{}
-		b.tables[tableName] = t
+		return errors.New("no such table")
 	}
 	t.items = append(t.items, r)
 	return nil

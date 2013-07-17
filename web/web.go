@@ -1,9 +1,8 @@
-package main
+package web
 
 import (
 	"bytes"
 	"crypto/md5"
-	"flag"
 	"fmt"
 	"html/template"
 	"io"
@@ -15,7 +14,6 @@ import (
 	"syscall"
 
 	"code.google.com/p/go.net/websocket"
-
 	"github.com/eikeon/ginger"
 )
 
@@ -64,16 +62,12 @@ func HandleTemplate(prefix, name string, data Data) {
 	})
 }
 
-func main() {
-	address := flag.String("address", ":9999", "http service address")
-	root := flag.String("root", ".", "...")
-	flag.Parse()
-
+func Server(address string, root string) {
 	log.Println("started")
 
 	g := ginger.NewMemoryGinger()
 
-	fs := http.FileServer(http.Dir(path.Join(*root, "static/")))
+	fs := http.FileServer(http.Dir(path.Join(root, "static/")))
 	http.Handle("/bootstrap/", fs)
 	http.Handle("/jquery/", fs)
 	http.Handle("/js/", fs)
@@ -149,8 +143,7 @@ func main() {
 	}))
 
 	go func() {
-		log.Println("starting server on:", *address)
-		err := http.ListenAndServe(*address, nil)
+		err := http.ListenAndServe(address, nil)
 		if err != nil {
 			log.Print("ListenAndServe:", err)
 		}

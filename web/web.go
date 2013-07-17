@@ -17,28 +17,36 @@ import (
 
 var Root string
 var site *template.Template
+var templates = make(map[string]*template.Template)
 
 func init() {
-	p, err := build.Default.Import("github.com/eikeon/ginger/web", "", build.FindOnly)
-	if err != nil {
-		log.Fatal("could not import package:", err)
+	if p, err := build.Default.Import("github.com/eikeon/ginger/web", "", build.FindOnly); err == nil {
+		Root = p.Dir
+	} else {
+		log.Println("WARNING: could not import package:", err)
 	}
-	Root = p.Dir
-}
-func makeTemplate(name string) *template.Template {
-	if site == nil {
-		site = template.Must(template.ParseFiles(path.Join(Root, "templates/site.html")))
-	}
-	t, err := site.Clone()
-	if err != nil {
-		log.Fatal("cloning site: ", err)
-	}
-	return template.Must(t.ParseFiles(path.Join(Root, name)))
 }
 
-type Data map[string]interface{}
+func getTemplate(name string) *template.Template {
+	if t, ok := templates[name]; ok {
+		return t
+	} else {
+		if site == nil {
+			site = template.Must(template.ParseFiles(path.Join(Root, "templates/site.html")))
+		}
+		t, err := site.Clone()
+		if err != nil {
+			log.Fatal("cloning site: ", err)
+		}
+		t = template.Must(t.ParseFiles(path.Join(Root, name)))
+		templates[name] = t
+		return t
+	}
+}
 
-func WriteTemplate(t *template.Template, d Data, w http.ResponseWriter) {
+type templateData map[string]interface{}
+
+func writeTemplate(t *template.Template, d templateData, w http.ResponseWriter) {
 	var bw bytes.Buffer
 	h := md5.New()
 	mw := io.MultiWriter(&bw, h)
@@ -52,10 +60,10 @@ func WriteTemplate(t *template.Template, d Data, w http.ResponseWriter) {
 	}
 }
 
-func HandleTemplate(prefix, name string, data Data) {
-	t := makeTemplate("templates/" + name + ".html")
+func handleTemplate(prefix, name string, data templateData) {
+	t := getTemplate("templates/" + name + ".html")
 	http.HandleFunc(prefix, func(w http.ResponseWriter, req *http.Request) {
-		d := Data{}
+		d := templateData{}
 		if data != nil {
 			for k, v := range data {
 				d[k] = v
@@ -67,8 +75,52 @@ func HandleTemplate(prefix, name string, data Data) {
 			w.Header().Set("Cache-Control", "max-age=10, must-revalidate")
 			w.WriteHeader(http.StatusNotFound)
 		}
-		WriteTemplate(t, d, w)
+		writeTemplate(t, d, w)
 	})
+}
+
+type collectionHandler struct {
+	g *ginger.Ginger
+}
+
+func (c *collectionHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	if req.Method == "GET" {
+		d := templateData{"Ginger": c.g}
+		dir, file := path.Split(req.URL.Path)
+		name := path.Base(req.URL.Path)
+		var t *template.Template
+		if dir == "/collection/" && file == "" {
+			d["Found"] = true
+			t = getTemplate("templates/" + "collections" + ".html")
+		} else if name != "" {
+			d["Found"] = true
+			for _, collection := range c.g.Collections() {
+				if collection.Name == name {
+					d["Collection"] = collection
+				}
+			}
+			t = getTemplate("templates/" + "collection" + ".html")
+		} else {
+			w.Header().Set("Cache-Control", "max-age=10, must-revalidate")
+			w.WriteHeader(http.StatusNotFound)
+			t = site
+		}
+		writeTemplate(t, d, w)
+	} else if req.Method == "POST" {
+		if err := req.ParseForm(); err == nil {
+			name, ok := req.Form["name"]
+			if ok {
+				if _, err := c.g.AddCollection(name[0], req.RemoteAddr); err != nil {
+					log.Println("Error adding collection:", err)
+				} else {
+					http.Redirect(w, req, req.URL.Path+"/", http.StatusCreated)
+				}
+			}
+		}
+		// TODO: write a response
+	} else {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
 }
 
 func AddHandlers(g *ginger.Ginger) {
@@ -77,51 +129,10 @@ func AddHandlers(g *ginger.Ginger) {
 	http.Handle("/jquery/", fs)
 	http.Handle("/js/", fs)
 
-	HandleTemplate("/", "home", Data{"Ginger": g})
-	data := Data{"Ginger": g}
-	collectionsTemplate := makeTemplate("templates/" + "collections" + ".html")
-	collectionTemplate := makeTemplate("templates/" + "collection" + ".html")
-	http.HandleFunc("/collection/", func(w http.ResponseWriter, req *http.Request) {
-		if req.Method == "GET" {
-			d := Data{}
-			if data != nil {
-				for k, v := range data {
-					d[k] = v
-				}
-			}
-			dir, file := path.Split(req.URL.Path)
-			name := path.Base(req.URL.Path)
-			if dir == "/collection/" && file == "" {
-				d["Found"] = true
-				WriteTemplate(collectionsTemplate, d, w)
-			} else if name != "" {
-				d["Found"] = true
-				for _, collection := range g.Collections() {
-					if collection.Name == name {
-						d["Collection"] = collection
-					}
-				}
-				WriteTemplate(collectionTemplate, d, w)
-			} else {
-				w.Header().Set("Cache-Control", "max-age=10, must-revalidate")
-				w.WriteHeader(http.StatusNotFound)
-			}
-		} else if req.Method == "POST" {
-			if err := req.ParseForm(); err == nil {
-				name, ok := req.Form["name"]
-				if ok {
-					if _, err := g.AddCollection(name[0], req.RemoteAddr); err != nil {
-						log.Println("Error adding collection:", err)
-					} else {
-						http.Redirect(w, req, req.URL.Path+"/", http.StatusCreated)
-					}
-				}
-			}
-			// TODO: write a response
-		} else {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-		}
-	})
+	handleTemplate("/", "home", templateData{"Ginger": g})
+
+	http.Handle("/collection/", &collectionHandler{g})
+
 	http.Handle("/state", websocket.Handler(func(ws *websocket.Conn) {
 		go func() {
 			for {

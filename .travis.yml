@@ -5,6 +5,6 @@ go:
 script:
   - sudo apt-get install node
   - sudo npm install -g bower
-  - cd web; make
+  - pushd web; make; popd
   - go list -f '{{range .XTestImports}}{{.}}{{"\n"}}{{end}}' | xargs go get
   - go test ./...

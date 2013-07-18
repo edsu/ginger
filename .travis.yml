@@ -1,12 +1,12 @@
-language: go
+language: go, nodejs
 go: 
 - 1.1
 - tip
+
 script:
   - sudo add-apt-repository --yes ppa:chris-lea/node.js
-  - sudo add-apt-repository --yes ppa:chris-lea/node.js-devel
-  - sudo apt-get update
-  - sudo apt-get install node npm
+  - sudo apt-get --yes update
+  - sudo apt-get install --yes nodejs
   - sudo npm install -g bower
   - pushd web; make; popd
   - go list -f '{{range .XTestImports}}{{.}}{{"\n"}}{{end}}' | xargs go get

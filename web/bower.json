@@ -2,6 +2,6 @@
   "name": "gingerweb",
   "version": "0.0.0",
   "dependencies": {
-    "bootstrap": "git@github.com:eikeon/bootstrap.git#v2.3.3"
+    "bootstrap": "https://github.com/eikeon/bootstrap.git"
   }
 }

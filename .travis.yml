@@ -4,6 +4,7 @@ go:
 - tip
 script:
   - sudo add-apt-repository --yes ppa:chris-lea/node.js
+  - sudo add-apt-repository --yes ppa:chris-lea/node.js-devel
   - sudo apt-get update
   - sudo apt-get install node npm
   - sudo npm install -g bower

@@ -1,4 +1,4 @@
-language: go, nodejs
+language: go
 go: 
 - 1.1
 - tip

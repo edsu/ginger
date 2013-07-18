@@ -12,7 +12,7 @@ fs.writeFileSync("package.json", JSON.stringify(data, null, 2));
 EOF
 node -e "${PATCH}"
 
-npm install --dev
+npm install
 make
 make bootstrap
 popd

@@ -3,5 +3,8 @@ go:
 - 1.1
 - tip
 script:
+  - sudo apt-get install node
+  - sudo npm install -g bower
+  - cd web; make
   - go list -f '{{range .XTestImports}}{{.}}{{"\n"}}{{end}}' | xargs go get
   - go test ./...

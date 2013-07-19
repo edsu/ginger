@@ -3,11 +3,22 @@
 <div ng-controller="GingerCtrl">
 
   <div class="row-fluid">
-    <div class="span3">
+    <div class="span6">
       <h2>{{.Collection.Name}} <small>Collection</small></h2>
       <p>
-	{{.Collection.RequestedBy}}
+	<small>requested by:</small> {{.Collection.RequestedBy}}
       </p>
+      <ul>
+	<li ng-repeat="fetch in state.Fetches">
+	  <a href="/fetch/[[fetch.RequestedOn]]/">[[fetch.URL]]</a> <small>requested on: ([[fetch.RequestedOn]])</small>
+	</li>
+      </ul>
+      <form ng-submit="addURL('{{.Collection.Name}}', url)" autocomplete="off">
+	<fieldset>
+	  <input class="input-block-level" type="text" ng-model="url" placeholder="url">
+	  <!--<button type="submit" class="btn">Add</button>-->
+	</fieldset>
+      </form>
     </div>
   </div>
 

@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"path"
+	"regexp"
 
 	"code.google.com/p/go.net/websocket"
 	"github.com/eikeon/ginger"
@@ -79,48 +80,146 @@ func handleTemplate(prefix, name string, data templateData) {
 	})
 }
 
+type collectionsServer struct {
+	g *ginger.Ginger
+}
+
+func (cs *collectionsServer) CollectionsServer(ws *websocket.Conn) {
+	go func() {
+		for {
+			var msg map[string]interface{}
+			if err := websocket.JSON.Receive(ws, &msg); err == nil {
+				log.Printf("ignoring: %#v\n", msg)
+			} else {
+				log.Println("State Websocket receive err:", err)
+				return
+			}
+		}
+	}()
+	for {
+		state := struct {
+			Collections []ginger.Collection
+		}{cs.g.Collections()}
+		if err := websocket.JSON.Send(ws, state); err != nil {
+			log.Println("State Websocket send err:", err)
+			return
+		}
+		cs.g.WaitStateChanged()
+	}
+}
+
+type collectionServer struct {
+	g              *ginger.Ginger
+	collectionName string
+}
+
+func (cs *collectionServer) CollectionServer(ws *websocket.Conn) {
+	go func() {
+		for {
+			var msg map[string]interface{}
+			if err := websocket.JSON.Receive(ws, &msg); err == nil {
+				log.Printf("ignoring: %#v\n", msg)
+			} else {
+				log.Println("State Websocket receive err:", err)
+				return
+			}
+		}
+	}()
+	for {
+		state := struct {
+			Fetches []ginger.Fetch
+		}{}
+		c, _ := cs.g.GetCollection(cs.collectionName)
+		if c != nil {
+			state.Fetches = c.Fetches()
+		}
+		if err := websocket.JSON.Send(ws, state); err != nil {
+			log.Println("State Websocket send err:", err)
+			return
+		}
+		cs.g.WaitStateChanged()
+	}
+}
+
 type collectionHandler struct {
 	g *ginger.Ginger
 }
 
-func (c *collectionHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	if req.Method == "GET" {
-		d := templateData{"Ginger": c.g}
-		dir, file := path.Split(req.URL.Path)
-		name := path.Base(req.URL.Path)
-		var t *template.Template
-		if dir == "/collection/" && file == "" {
-			d["Found"] = true
-			t = getTemplate("templates/" + "collections" + ".html")
-		} else if name != "" {
-			d["Found"] = true
-			for _, collection := range c.g.Collections() {
-				if collection.Name == name {
-					d["Collection"] = collection
-				}
-			}
-			t = getTemplate("templates/" + "collection" + ".html")
-		} else {
-			w.Header().Set("Cache-Control", "max-age=10, must-revalidate")
-			w.WriteHeader(http.StatusNotFound)
-			t = site
-		}
-		writeTemplate(t, d, w)
-	} else if req.Method == "POST" {
-		if err := req.ParseForm(); err == nil {
-			name, ok := req.Form["name"]
-			if ok {
-				if _, err := c.g.AddCollection(name[0], req.RemoteAddr); err != nil {
-					log.Println("Error adding collection:", err)
-				} else {
-					http.Redirect(w, req, req.URL.Path+"/", http.StatusCreated)
-				}
-			}
-		}
-		// TODO: write a response
-	} else {
-		w.WriteHeader(http.StatusMethodNotAllowed)
+func (ch *collectionHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	var name, rest string
+	var urlregex = regexp.MustCompile(`^/collection/(?:(?P<name>[^/]+)/)?(?P<rest>[^/]+)?$`)
+	matches := urlregex.FindStringSubmatch(req.URL.Path)
+	if len(matches) > 0 {
+		name = matches[1]
+		rest = matches[2]
 	}
+	var t *template.Template
+	d := templateData{"Ginger": ch.g}
+	if name == "" { // collections
+		if rest == "" {
+			if req.Method == "GET" {
+				d["Found"] = true
+				t = getTemplate("templates/" + "collections" + ".html")
+			} else if req.Method == "POST" {
+				if err := req.ParseForm(); err == nil {
+					name, ok := req.Form["name"]
+					if ok {
+						if _, err := ch.g.AddCollection(name[0], req.RemoteAddr); err != nil {
+							log.Println("Error adding collection:", err)
+						} else {
+							http.Redirect(w, req, req.URL.Path+"/", http.StatusCreated)
+						}
+					}
+				}
+				// TODO: write a response
+			} else {
+				w.WriteHeader(http.StatusMethodNotAllowed)
+			}
+		} else if rest == "state" {
+			cs := &collectionsServer{ch.g}
+			websocket.Handler(cs.CollectionsServer).ServeHTTP(w, req)
+		} else {
+			w.WriteHeader(http.StatusNotFound)
+			t = getTemplate("templates/" + "collections" + ".html")
+		}
+	} else { // collection named name
+		collection, _ := ch.g.GetCollection(name)
+		d["Collection"] = collection
+		if rest == "" {
+			if collection == nil {
+				w.WriteHeader(http.StatusNotFound)
+				t = getTemplate("templates/" + "collection" + ".html")
+			} else if req.Method == "GET" {
+				t = getTemplate("templates/" + "collection" + ".html")
+				d["Found"] = true
+			} else if req.Method == "POST" {
+				if err := req.ParseForm(); err == nil {
+					url, ok := req.Form["url"]
+					if ok {
+						if err := collection.Add(url[0], req.RemoteAddr); err != nil {
+							log.Println("Error adding URL:", err)
+						} else {
+							ch.g.StateChanged()
+							http.Redirect(w, req, req.URL.Path+"/", http.StatusCreated)
+						}
+					}
+				}
+				// TODO: write a response
+			} else {
+				w.WriteHeader(http.StatusMethodNotAllowed)
+			}
+		} else if rest == "state" {
+			cs := &collectionServer{ch.g, name}
+			websocket.Handler(cs.CollectionServer).ServeHTTP(w, req)
+		} else {
+			w.WriteHeader(http.StatusNotFound)
+			t = getTemplate("templates/" + "collection" + ".html")
+		}
+	}
+	if t != nil {
+		writeTemplate(t, d, w)
+	}
+
 }
 
 func AddHandlers(g *ginger.Ginger) {
@@ -132,29 +231,4 @@ func AddHandlers(g *ginger.Ginger) {
 	handleTemplate("/", "home", templateData{"Ginger": g})
 
 	http.Handle("/collection/", &collectionHandler{g})
-
-	http.Handle("/state", websocket.Handler(func(ws *websocket.Conn) {
-		go func() {
-			for {
-				var msg map[string]interface{}
-				if err := websocket.JSON.Receive(ws, &msg); err == nil {
-					log.Printf("ignoring: %#v\n", msg)
-				} else {
-					log.Println("State Websocket receive err:", err)
-					return
-				}
-			}
-		}()
-		for {
-			state := struct {
-				Collections []ginger.Collection
-			}{g.Collections()}
-			if err := websocket.JSON.Send(ws, state); err != nil {
-				log.Println("State Websocket send err:", err)
-				return
-			}
-			g.WaitStateChanged()
-		}
-	}))
-
 }

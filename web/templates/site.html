@@ -16,7 +16,7 @@ function GingerCtrl($scope) {
     $scope.connection = null;
 
     $scope.NewConnection = function() {
-	connection = new WebSocket('ws://'+document.location.host+'/state');
+	connection = new WebSocket('ws://'+document.location.host+document.location.pathname+'state');
 
 	connection.onopen = function () {
 	};
@@ -63,6 +63,28 @@ function GingerCtrl($scope) {
 	    dataType: "html"
 	});
 	$scope.collectionName = "";
+    };
+
+    $scope.addURL = function(collectionName, url) {
+	$.ajax({
+	    url: "/collection/" + collectionName + "/?" + $.now(),
+	    type: "POST",
+	    cache: false,
+	    data: {
+		"url": url},
+	    statusCode: {
+		404: function() {
+		},
+		200: function() {
+		}
+	    },
+	    dataType: "html"
+	});
+	$scope.url = "";
+    };
+
+    $scope.Fetches = function(collectionName) {
+	return ["one", "two", "three"];
     };
 
 }

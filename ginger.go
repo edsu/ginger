@@ -1,9 +1,9 @@
 package ginger
 
 import (
+	"errors"
 	"log"
 	"net/http"
-	"net/url"
 	"sync"
 	"time"
 
@@ -14,7 +14,7 @@ import (
 var DB db.DB
 
 type Fetch struct {
-	URL         *url.URL
+	URL         string
 	RequestedOn string
 	Response    *FetchResponse
 }
@@ -38,17 +38,26 @@ type Collection struct {
 }
 
 func (c *Collection) Add(URL string, requestedBy string) error {
-	u, err := url.Parse(URL)
-	if err == nil {
-		t := time.Now()
-		f := &Fetch{u, t.Format(time.RFC3339Nano), nil}
-		f.Put()
-	}
-	return err
+	t := time.Now()
+	// TODO: requestedBy
+	f := &Fetch{URL, t.Format(time.RFC3339Nano), nil}
+	f.Put()
+	return nil
 }
 
 func (c *Collection) Put() error {
 	return DB.Put("collection", *c)
+}
+
+func (c *Collection) Fetches() (fetch []Fetch) {
+	items, err := DB.Scan("fetch")
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, i := range items {
+		fetch = append(fetch, i.(Fetch))
+	}
+	return
 }
 
 type Ginger struct {
@@ -80,6 +89,15 @@ func (g *Ginger) AddCollection(name string, requestedBy string) (*Collection, er
 	}
 	g.StateChanged()
 	return c, nil
+}
+
+func (g *Ginger) GetCollection(name string) (*Collection, error) {
+	for _, c := range g.Collections() {
+		if c.Name == name {
+			return &c, nil
+		}
+	}
+	return nil, errors.New("Collection not found")
 }
 
 func (m *Ginger) getStateCond() *sync.Cond {
@@ -121,7 +139,7 @@ func Worker(requests queue.Queue) {
 			log.Println("Done fetching")
 			break
 		}
-		r, err := http.Get(fetch.URL.String())
+		r, err := http.Get(fetch.URL)
 		if err != nil {
 			log.Fatal(err)
 		}

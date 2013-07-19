@@ -28,7 +28,7 @@ func TestGinger(t *testing.T) {
 	if responses, err := ginger.DB.Scan("fetch"); err == nil {
 		for _, r := range responses {
 			f := r.(ginger.Fetch)
-			if f.URL.String() == "http://www.eikeon.com/" {
+			if f.URL == "http://www.eikeon.com/" {
 				if f.Response != nil && f.Response.StatusCode != 0 {
 					goto found
 				}

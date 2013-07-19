@@ -1,3 +1,5 @@
+SHELL := /bin/bash
+
 all:  angular angular-ui bootstrap jquery
 
 clean:
@@ -8,9 +10,12 @@ bower:
 	bower install
 
 bootstrap:  bower
+	pushd bower_components/bootstrap/; npm install; make; make bootstrap; popd
 	mkdir -p static
-	./bootstrap.sh
 	cp -r bower_components/bootstrap/bootstrap static/
+
+testing:
+	pushd bower_components/bootstrap/; npm install; make; make bootstrap; popd
 
 jquery:  bower
 	mkdir -p static

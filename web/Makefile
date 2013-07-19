@@ -6,10 +6,9 @@ clean:
 	rm -rf static/bootstrap
 	rm -rf static/jquery
 
-bower:
-	bower install
-
-bootstrap:  bower
+bootstrap:
+	npm install bower
+	./node_modules/bower/bin/bower install; 
 	pushd bower_components/bootstrap/; npm install; make; make bootstrap; popd
 	mkdir -p static
 	cp -r bower_components/bootstrap/bootstrap static/

@@ -16,7 +16,7 @@ bootstrap:
 testing:
 	pushd bower_components/bootstrap/; npm install; make; make bootstrap; popd
 
-jquery:  bower
+jquery:
 	mkdir -p static
 	cp -r bower_components/jquery static/
 

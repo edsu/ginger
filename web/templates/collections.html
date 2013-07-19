@@ -12,7 +12,6 @@
       <form ng-submit="addCollection(collectionName)" autocomplete="off">
 	<fieldset>
 	  <input class="input-block-level" type="text" typeahead="collection.Name for collection in state.Collections | filter:$viewValue" ng-model="collectionName" placeholder="collection name">
-	  <input type="hidden" ng-model="state.Collection">
 	  <!--<button type="submit" class="btn">Add</button>-->
 	</fieldset>
       </form>

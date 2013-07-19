@@ -7,6 +7,7 @@ script:
   - sudo add-apt-repository --yes ppa:chris-lea/node.js
   - sudo apt-get --yes update
   - sudo apt-get install --yes nodejs
+  - npm cache ls # so that cache dir is created as user else the following creates it as root.
   - sudo npm install -g bower
   - pushd web; make; popd
   - go list -f '{{range .XTestImports}}{{.}}{{"\n"}}{{end}}' | xargs go get

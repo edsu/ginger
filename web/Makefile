@@ -1,23 +1,17 @@
 SHELL := /bin/bash
 
-all:  angular angular-ui bootstrap jquery
+all:  angular angular-ui bowerinstall
 
 clean:
 	rm -rf static/bootstrap
 	rm -rf static/jquery
 
-bootstrap:
+bowerinstall:
 	npm install bower
 	./node_modules/bower/bin/bower install; 
 	pushd bower_components/bootstrap/; npm install; make; make bootstrap; popd
 	mkdir -p static
 	cp -r bower_components/bootstrap/bootstrap static/
-
-testing:
-	pushd bower_components/bootstrap/; npm install; make; make bootstrap; popd
-
-jquery:
-	mkdir -p static
 	cp -r bower_components/jquery static/
 
 angular:

@@ -7,6 +7,6 @@ script:
   - sudo add-apt-repository --yes ppa:chris-lea/node.js
   - sudo apt-get --yes update
   - sudo apt-get install --yes nodejs
-  - pushd web; make; popd
+  - pushd web; make; make install; popd
   - go list -f '{{range .XTestImports}}{{.}}{{"\n"}}{{end}}' | xargs go get
   - go test ./...

@@ -1,7 +1,9 @@
 {
   "name": "gingerweb",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "dependencies": {
-    "bootstrap": "https://github.com/eikeon/bootstrap.git"
+    "bootstrap": "https://github.com/eikeon/bootstrap.git",
+    "anjularjs": "https://github.com/angular/angular.js.git",
+    "angular-bootstrap": "~0.4.0"
   }
 }

@@ -2,6 +2,7 @@ package db
 
 import (
 	"errors"
+	"reflect"
 )
 
 type KeySchema []KeySchemaElement
@@ -31,7 +32,8 @@ type DB interface {
 // an in memory ginger.DB implementation
 
 type table struct {
-	items []interface{}
+	definition *Table
+	items      map[string]interface{}
 }
 
 type MemoryDB struct {
@@ -39,10 +41,11 @@ type MemoryDB struct {
 }
 
 func (b *MemoryDB) CreateTable(name string, attributeDefinitions []AttributeDefinition, keySchema KeySchema) {
+	definition := Table{name, keySchema, attributeDefinitions}
 	if b.tables == nil {
 		b.tables = make(map[string]*table)
 	}
-	b.tables[name] = &table{}
+	b.tables[name] = &table{definition: &definition, items: make(map[string]interface{})}
 }
 
 func (b *MemoryDB) Put(tableName string, r interface{}) error {
@@ -53,11 +56,13 @@ func (b *MemoryDB) Put(tableName string, r interface{}) error {
 	if !ok {
 		return errors.New("no such table")
 	}
-	t.items = append(t.items, r)
+	v := reflect.ValueOf(r)
+	pk := v.FieldByName(t.definition.KeySchema[0].AttributeName).String()
+	t.items[pk] = r
 	return nil
 }
 
-func (b *MemoryDB) Scan(tableName string) ([]interface{}, error) {
+func (b *MemoryDB) Scan(tableName string) (items []interface{}, err error) {
 	if b.tables == nil {
 		return nil, errors.New("no tables")
 	}
@@ -65,5 +70,8 @@ func (b *MemoryDB) Scan(tableName string) ([]interface{}, error) {
 	if !ok {
 		return nil, errors.New("no such table")
 	}
-	return t.items, nil
+	for _, item := range t.items {
+		items = append(items, item)
+	}
+	return
 }

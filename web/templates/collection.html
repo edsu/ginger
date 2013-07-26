@@ -9,8 +9,13 @@
 	<small>requested by:</small> {{.Collection.RequestedBy}}
       </p>
       <ul>
-	<li ng-repeat="fetch in state.Fetches">
+	<li ng-repeat="fetch in state.Requested">
 	  <a href="/fetch/[[fetch.RequestedOn]]/">[[fetch.URL]]</a> <small>requested on: ([[fetch.RequestedOn]])</small>
+	</li>
+      </ul>
+      <ul>
+	<li ng-repeat="fetch in state.Fetched">
+	  <a href="/fetch/[[fetch.FetchedOn]]/">[[fetch.URL]]</a> <small>fetched on: ([[fetch.FetchedOn]])</small>
 	</li>
       </ul>
       <form ng-submit="addURL('{{.Collection.Name}}', url)" autocomplete="off">

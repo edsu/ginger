@@ -85,8 +85,8 @@ type Ginger struct {
 
 func NewMemoryGinger() *Ginger {
 	DB = &db.MemoryDB{}
-	DB.CreateTable("fetch", []db.AttributeDefinition{}, db.KeySchema{})
-	DB.CreateTable("collection", []db.AttributeDefinition{}, db.KeySchema{})
+	DB.CreateTable("fetch", []db.AttributeDefinition{}, db.KeySchema{db.KeySchemaElement{"URL", "String"}})
+	DB.CreateTable("collection", []db.AttributeDefinition{}, db.KeySchema{db.KeySchemaElement{"Name", "String"}})
 	return &Ginger{}
 }
 

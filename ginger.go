@@ -15,7 +15,9 @@ var DB db.DB
 
 type Fetch struct {
 	URL         string
+	AddedOn     string
 	RequestedOn string
+	FetchedOn   string
 	Response    *FetchResponse
 }
 
@@ -38,9 +40,8 @@ type Collection struct {
 }
 
 func (c *Collection) Add(URL string, requestedBy string) error {
-	t := time.Now()
-	// TODO: requestedBy
-	f := &Fetch{URL, t.Format(time.RFC3339Nano), nil}
+	now := time.Now().Format(time.RFC3339Nano)
+	f := &Fetch{URL: URL, AddedOn: now, RequestedOn: now} // TODO: requestedBy
 	f.Put()
 	return nil
 }
@@ -56,6 +57,24 @@ func (c *Collection) Fetches() (fetch []Fetch) {
 	}
 	for _, i := range items {
 		fetch = append(fetch, i.(Fetch))
+	}
+	return
+}
+
+func (c *Collection) Requested() (requested []Fetch) {
+	for _, fetch := range c.Fetches() {
+		if fetch.RequestedOn != "" {
+			requested = append(requested, fetch)
+		}
+	}
+	return
+}
+
+func (c *Collection) Fetched() (fetched []Fetch) {
+	for _, fetch := range c.Fetches() {
+		if fetch.FetchedOn != "" {
+			fetched = append(fetched, fetch)
+		}
 	}
 	return
 }
@@ -144,6 +163,8 @@ func Worker(requests queue.Queue) {
 			log.Fatal(err)
 		}
 		fetch.Response = &FetchResponse{r.StatusCode, r.ContentLength}
+		fetch.RequestedOn = ""
+		fetch.FetchedOn = time.Now().Format(time.RFC3339Nano)
 		fetch.Update()
 	}
 }

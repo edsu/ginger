@@ -127,11 +127,13 @@ func (cs *collectionServer) CollectionServer(ws *websocket.Conn) {
 	}()
 	for {
 		state := struct {
-			Fetches []ginger.Fetch
+			Requested []ginger.Fetch
+			Fetched   []ginger.Fetch
 		}{}
 		c, _ := cs.g.GetCollection(cs.collectionName)
 		if c != nil {
-			state.Fetches = c.Fetches()
+			state.Requested = c.Requested()
+			state.Fetched = c.Fetched()
 		}
 		if err := websocket.JSON.Send(ws, state); err != nil {
 			log.Println("State Websocket send err:", err)

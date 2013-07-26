@@ -7,10 +7,33 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/eikeon/ginger"
+	"github.com/eikeon/ginger/queue"
 	"github.com/eikeon/ginger/web"
 )
+
+// run other bits of stack for testing purposes
+func testing(g *ginger.Ginger) {
+	requests := queue.NewChannelQueue(nil)
+
+	go func() {
+		for {
+			ginger.Qer(requests)
+			time.Sleep(10 * time.Second)
+		}
+	}()
+
+	go ginger.Worker(requests)
+
+	go func() {
+		for {
+			g.StateChanged()
+			time.Sleep(1 * time.Second)
+		}
+	}()
+}
 
 func main() {
 	address := flag.String("address", ":9999", "http service address")
@@ -18,6 +41,8 @@ func main() {
 
 	g := ginger.NewMemoryGinger()
 	web.AddHandlers(g)
+
+	testing(g)
 
 	go func() {
 		log.Println("server listening on:", *address)

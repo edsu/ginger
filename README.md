@@ -16,7 +16,7 @@ Run
 Components
 ----------
 
-* gingerweb - a Web application and REST API
+* gw - a Web application and REST API
 * ??? - query for and queue work
 * ??? - checks the web for the resource
 * ??? - persists resource metadata
@@ -32,4 +32,4 @@ Develop [![Build Status](https://api.travis-ci.org/eikeon/ginger.png?branch=mast
 * ln -s ginger $GOPATH/src/github.com/eikeon/ginger
 * hack hack hack
 * git push
-* send pull request to eikeon on github
+* send pull request http://github.com/eikeon/ginger

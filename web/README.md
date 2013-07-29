@@ -4,6 +4,4 @@ Ginger Web
 ...
 
 
-    sudo npm install bower -g
-
-    make
+    see ../.travis.yml for now.

@@ -229,6 +229,7 @@ func AddHandlers(g *ginger.Ginger) {
 	http.Handle("/bootstrap/", fs)
 	http.Handle("/jquery/", fs)
 	http.Handle("/js/", fs)
+	http.Handle("/css/", fs)
 
 	handleTemplate("/", "home", templateData{"Ginger": g})
 

@@ -8,9 +8,7 @@ _obj
 _test
 web/bower_components/
 web/node_modules/
-web/static/bootstrap/
-web/static/jquery/
-web/static/js/
+web/static/
 
 # Architecture specific extensions/prefixes
 *.[568vq]

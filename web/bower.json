@@ -1,9 +1,9 @@
 {
   "name": "gingerweb",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "dependencies": {
-    "bootstrap": "https://github.com/eikeon/bootstrap.git",
-    "anjularjs": "https://github.com/angular/angular.js.git",
-    "angular-bootstrap": "~0.4.0"
+    "bootstrap": "git://github.com/twbs/bootstrap.git#3.0.0-rc1",
+    "angularjs": "https://ajax.googleapis.com/ajax/libs/angularjs/1.1.5/angular.js",
+    "angular-ui-bootstrap": "https://raw.github.com/angular-ui/bootstrap/gh-pages/ui-bootstrap-tpls-0.4.0.js"
   }
 }

@@ -23,9 +23,10 @@ type WarcReader struct {
 
 // WarcRecord represents a complete WARC Record.
 type WarcRecord struct {
-	Version string
-	Headers map[string]string
-	// TODO: need to record offsets for content block
+	Version           string
+	Headers           map[string]string
+	ContentBlockStart int64
+	ContentBlockEnd   int64
 }
 
 // ReadRecord is method that retuns the next WARC Record available.
@@ -74,6 +75,7 @@ func (wr *WarcReader) readHeaders(rec *WarcRecord) error {
 }
 
 func (wr *WarcReader) readContentBlock(rec *WarcRecord) error {
+	rec.ContentBlockStart = wr.pos
 	contentLength, err := strconv.Atoi(rec.Headers["content-length"])
 	if err != nil {
 		return err
@@ -86,11 +88,13 @@ func (wr *WarcReader) readContentBlock(rec *WarcRecord) error {
 		}
 		buff := make([]byte, buffSize)
 		n, err := wr.bufreader.Read(buff)
+		wr.pos += int64(n)
 		if err != nil {
 			return err
 		}
 		remaining -= n
 	}
+	rec.ContentBlockEnd = rec.ContentBlockStart + int64(contentLength)
 	return err
 }
 

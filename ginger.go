@@ -1,7 +1,9 @@
 package ginger
 
 import (
+	"crypto/md5"
 	"errors"
+	"io"
 	"log"
 	"net/http"
 	"sync"
@@ -13,11 +15,42 @@ import (
 
 var DB db.DB
 
-type Fetch struct {
-	URL         string
+type CollectionItem struct {
+	CollectionName string
+	URL            string
+	AddedOn        string
+	RequestedOn    string
+	// Last fetched on
+	FetchedOn string
+}
+
+func (ci *CollectionItem) Put() error {
+	return DB.Put("collectionitem", *ci)
+}
+
+func (ci *CollectionItem) Update() error {
+	return ci.Put()
+}
+
+func urlHash(URL string) string {
+	h := md5.New()
+	io.WriteString(h, URL)
+	return string(h.Sum(nil))
+}
+
+type Resource struct {
+	URLHash     string
 	AddedOn     string
+	UpdatedOn   string
+	URL         string
+	Collections []string
+}
+
+type Fetch struct {
+	URLHash     string
 	RequestedOn string
 	FetchedOn   string
+	URL         string
 	Response    *FetchResponse
 }
 
@@ -41,7 +74,7 @@ type Collection struct {
 
 func (c *Collection) Add(URL string, requestedBy string) error {
 	now := time.Now().Format(time.RFC3339Nano)
-	f := &Fetch{URL: URL, AddedOn: now, RequestedOn: now} // TODO: requestedBy
+	f := &CollectionItem{CollectionName: c.Name, URL: URL, AddedOn: now, RequestedOn: now} // TODO: requestedBy
 	f.Put()
 	return nil
 }
@@ -50,19 +83,19 @@ func (c *Collection) Put() error {
 	return DB.Put("collection", *c)
 }
 
-func (c *Collection) Fetches() (fetch []Fetch) {
-	items, err := DB.Scan("fetch")
+func (c *Collection) Items() (fetch []CollectionItem) {
+	items, err := DB.Scan("collectionitem")
 	if err != nil {
 		log.Fatal(err)
 	}
 	for _, i := range items {
-		fetch = append(fetch, i.(Fetch))
+		fetch = append(fetch, i.(CollectionItem))
 	}
 	return
 }
 
-func (c *Collection) Requested() (requested []Fetch) {
-	for _, fetch := range c.Fetches() {
+func (c *Collection) Requested() (requested []CollectionItem) {
+	for _, fetch := range c.Items() {
 		if fetch.RequestedOn != "" {
 			requested = append(requested, fetch)
 		}
@@ -70,8 +103,8 @@ func (c *Collection) Requested() (requested []Fetch) {
 	return
 }
 
-func (c *Collection) Fetched() (fetched []Fetch) {
-	for _, fetch := range c.Fetches() {
+func (c *Collection) Fetched() (fetched []CollectionItem) {
+	for _, fetch := range c.Items() {
 		if fetch.FetchedOn != "" {
 			fetched = append(fetched, fetch)
 		}
@@ -87,6 +120,7 @@ func NewMemoryGinger() *Ginger {
 	DB = &db.MemoryDB{}
 	DB.CreateTable("fetch", []db.AttributeDefinition{}, db.KeySchema{db.KeySchemaElement{"URL", "String"}})
 	DB.CreateTable("collection", []db.AttributeDefinition{}, db.KeySchema{db.KeySchemaElement{"Name", "String"}})
+	DB.CreateTable("collectionitem", []db.AttributeDefinition{}, db.KeySchema{db.KeySchemaElement{"Name", "String"}, db.KeySchemaElement{"URL", "String"}})
 	return &Ginger{}
 }
 
@@ -141,7 +175,7 @@ func (m *Ginger) WaitStateChanged() {
 }
 
 func Qer(requests queue.Queue) {
-	items, err := DB.Scan("fetch")
+	items, err := DB.Scan("collectionitem")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -152,19 +186,22 @@ func Qer(requests queue.Queue) {
 
 func Worker(requests queue.Queue) {
 	for {
-		var fetch Fetch
-		err := requests.Receive(&fetch)
+		var collectionitem CollectionItem
+		err := requests.Receive(&collectionitem)
 		if err != nil {
 			log.Println("Done fetching")
 			break
 		}
-		r, err := http.Get(fetch.URL)
+		r, err := http.Get(collectionitem.URL)
 		if err != nil {
 			log.Fatal(err)
 		}
+		now := time.Now().Format(time.RFC3339Nano)
+		fetch := &Fetch{URLHash: urlHash(collectionitem.URL), URL: collectionitem.URL, FetchedOn: now} // TODO: requestedBy
 		fetch.Response = &FetchResponse{r.StatusCode, r.ContentLength}
-		fetch.RequestedOn = ""
-		fetch.FetchedOn = time.Now().Format(time.RFC3339Nano)
-		fetch.Update()
+		fetch.Put()
+		collectionitem.RequestedOn = ""
+		collectionitem.FetchedOn = now
+		collectionitem.Update()
 	}
 }

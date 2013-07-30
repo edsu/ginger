@@ -22,14 +22,14 @@
       <h3>Requested</h3>
       <ul>
 	<li ng-repeat="fetch in state.Requested">
-	  <a href="/fetch/[[fetch.RequestedOn]]/">[[fetch.URL]]</a> <small>requested on: ([[fetch.RequestedOn]])</small>
+	  <a href="/resource/[[fetch.URLHash]]/[[fetch.RequestedOn]]/">[[fetch.URL]]</a> <small>requested on: ([[fetch.RequestedOn]])</small>
 	</li>
       </ul>
 
       <h3>Fetched</h3>
       <ul>
 	<li ng-repeat="fetch in state.Fetched">
-	  <a href="/fetch/[[fetch.FetchedOn]]/">[[fetch.URL]]</a> <small>fetched on: ([[fetch.FetchedOn]])</small>
+	  <a href="/resource/[[fetch.URLHash]]/[[fetch.RequestedOn]]/">[[fetch.URL]]</a> <small>fetched on: ([[fetch.FetchedOn]])</small>
 	</li>
       </ul>
     </div>

@@ -127,8 +127,8 @@ func (cs *collectionServer) CollectionServer(ws *websocket.Conn) {
 	}()
 	for {
 		state := struct {
-			Requested []ginger.Fetch
-			Fetched   []ginger.Fetch
+			Requested []ginger.CollectionItem
+			Fetched   []ginger.CollectionItem
 		}{}
 		c, _ := cs.g.GetCollection(cs.collectionName)
 		if c != nil {

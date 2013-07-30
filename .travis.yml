@@ -7,7 +7,7 @@ script:
   - sudo add-apt-repository --yes ppa:chris-lea/node.js
   - sudo apt-get --yes update
   - sudo apt-get install --yes nodejs
-  - npm install -g grunt-cli
-  - pushd web; npm install; ./node_modules/bower/bin/bower install; grunt; popd
+  - npm install -g grunt-cli bower
+  - pushd web; npm install; bower install; grunt; popd
   - go list -f '{{range .XTestImports}}{{.}}{{"\n"}}{{end}}' | xargs go get
   - go test ./...

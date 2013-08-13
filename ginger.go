@@ -9,14 +9,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/eikeon/ginger/db"
+	"github.com/eikeon/dynamodb"
 	"github.com/eikeon/ginger/queue"
 )
 
-var DB db.DB
+var DB dynamodb.DynamoDB
 
 type CollectionItem struct {
-	CollectionName string
+	CollectionName string `db:"HASH"`
 	URL            string
 	AddedOn        string
 	RequestedOn    string
@@ -25,7 +25,7 @@ type CollectionItem struct {
 }
 
 func (ci *CollectionItem) Put() error {
-	return DB.Put("collectionitem", *ci)
+	return DB.PutItem("collectionitem", ci)
 }
 
 func (ci *CollectionItem) Update() error {
@@ -47,15 +47,17 @@ type Resource struct {
 }
 
 type Fetch struct {
-	URLHash     string
+	URLHash     string `db:"HASH"`
 	RequestedOn string
 	FetchedOn   string
 	URL         string
-	Response    *FetchResponse
+	// Response
+	StatusCode    int
+	ContentLength int64
 }
 
 func (req *Fetch) Put() error {
-	return DB.Put("fetch", *req)
+	return DB.PutItem("fetch", req)
 }
 
 func (req *Fetch) Update() error {
@@ -63,12 +65,10 @@ func (req *Fetch) Update() error {
 }
 
 type FetchResponse struct {
-	StatusCode    int
-	ContentLength int64
 }
 
 type Collection struct {
-	Name        string
+	Name        string `db:"HASH"`
 	RequestedBy string
 }
 
@@ -80,21 +80,21 @@ func (c *Collection) Add(URL string, requestedBy string) error {
 }
 
 func (c *Collection) Put() error {
-	return DB.Put("collection", *c)
+	return DB.PutItem("collection", c)
 }
 
-func (c *Collection) Items() (fetch []CollectionItem) {
-	items, err := DB.Scan("collectionitem")
+func (c *Collection) Items() (fetch []*CollectionItem) {
+	response, err := DB.Scan("collectionitem")
 	if err != nil {
 		log.Fatal(err)
 	}
-	for _, i := range items {
-		fetch = append(fetch, i.(CollectionItem))
+	for _, i := range response.GetItems() {
+		fetch = append(fetch, i.(*CollectionItem))
 	}
 	return
 }
 
-func (c *Collection) Requested() (requested []CollectionItem) {
+func (c *Collection) Requested() (requested []*CollectionItem) {
 	for _, fetch := range c.Items() {
 		if fetch.RequestedOn != "" {
 			requested = append(requested, fetch)
@@ -103,7 +103,7 @@ func (c *Collection) Requested() (requested []CollectionItem) {
 	return
 }
 
-func (c *Collection) Fetched() (fetched []CollectionItem) {
+func (c *Collection) Fetched() (fetched []*CollectionItem) {
 	for _, fetch := range c.Items() {
 		if fetch.FetchedOn != "" {
 			fetched = append(fetched, fetch)
@@ -117,20 +117,29 @@ type Ginger struct {
 }
 
 func NewMemoryGinger() *Ginger {
-	DB = &db.MemoryDB{}
-	DB.CreateTable("fetch", []db.AttributeDefinition{}, db.KeySchema{db.KeySchemaElement{"URL", "String"}})
-	DB.CreateTable("collection", []db.AttributeDefinition{}, db.KeySchema{db.KeySchemaElement{"Name", "String"}})
-	DB.CreateTable("collectionitem", []db.AttributeDefinition{}, db.KeySchema{db.KeySchemaElement{"Name", "String"}, db.KeySchemaElement{"URL", "String"}})
+	DB = dynamodb.NewMemoryDB()
+	DB.Register("fetch", (*Fetch)(nil))
+	DB.Register("collection", (*Collection)(nil))
+	DB.Register("collectionitem", (*CollectionItem)(nil))
+	if err := DB.CreateTable("fetch"); err != nil {
+		panic(err)
+	}
+	if err := DB.CreateTable("collection"); err != nil {
+		panic(err)
+	}
+	if err := DB.CreateTable("collectionitem"); err != nil {
+		panic(err)
+	}
 	return &Ginger{}
 }
 
-func (g *Ginger) Collections() (collection []Collection) {
-	items, err := DB.Scan("collection")
+func (g *Ginger) Collections() (collection []*Collection) {
+	response, err := DB.Scan("collection")
 	if err != nil {
 		log.Fatal(err)
 	}
-	for _, i := range items {
-		collection = append(collection, i.(Collection))
+	for _, i := range response.GetItems() {
+		collection = append(collection, i.(*Collection))
 	}
 	return
 }
@@ -147,7 +156,7 @@ func (g *Ginger) AddCollection(name string, requestedBy string) (*Collection, er
 func (g *Ginger) GetCollection(name string) (*Collection, error) {
 	for _, c := range g.Collections() {
 		if c.Name == name {
-			return &c, nil
+			return c, nil
 		}
 	}
 	return nil, errors.New("Collection not found")
@@ -175,11 +184,11 @@ func (m *Ginger) WaitStateChanged() {
 }
 
 func Qer(requests queue.Queue) {
-	items, err := DB.Scan("collectionitem")
+	response, err := DB.Scan("collectionitem")
 	if err != nil {
 		log.Fatal(err)
 	}
-	for _, i := range items {
+	for _, i := range response.GetItems() {
 		requests.Send(i)
 	}
 }
@@ -198,7 +207,8 @@ func Worker(requests queue.Queue) {
 		}
 		now := time.Now().Format(time.RFC3339Nano)
 		fetch := &Fetch{URLHash: urlHash(collectionitem.URL), URL: collectionitem.URL, FetchedOn: now} // TODO: requestedBy
-		fetch.Response = &FetchResponse{r.StatusCode, r.ContentLength}
+		fetch.StatusCode = r.StatusCode
+		fetch.ContentLength = r.ContentLength
 		fetch.Put()
 		collectionitem.RequestedOn = ""
 		collectionitem.FetchedOn = now

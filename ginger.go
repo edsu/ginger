@@ -2,7 +2,6 @@ package ginger
 
 import (
 	"crypto/md5"
-	"errors"
 	"io"
 	"log"
 	"net/http"
@@ -154,12 +153,11 @@ func (g *Ginger) AddCollection(name string, requestedBy string) (*Collection, er
 }
 
 func (g *Ginger) GetCollection(name string) (*Collection, error) {
-	for _, c := range g.Collections() {
-		if c.Name == name {
-			return c, nil
-		}
+	if item, err := DB.GetItem("collection", &Collection{Name: name}); err == nil {
+		return item.(*Collection), nil
+	} else {
+		return nil, err
 	}
-	return nil, errors.New("Collection not found")
 }
 
 func (m *Ginger) getStateCond() *sync.Cond {

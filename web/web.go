@@ -98,7 +98,7 @@ func (cs *collectionsServer) CollectionsServer(ws *websocket.Conn) {
 	}()
 	for {
 		state := struct {
-			Collections []ginger.Collection
+			Collections []*ginger.Collection
 		}{cs.g.Collections()}
 		if err := websocket.JSON.Send(ws, state); err != nil {
 			log.Println("State Websocket send err:", err)
@@ -127,8 +127,8 @@ func (cs *collectionServer) CollectionServer(ws *websocket.Conn) {
 	}()
 	for {
 		state := struct {
-			Requested []ginger.CollectionItem
-			Fetched   []ginger.CollectionItem
+			Requested []*ginger.CollectionItem
+			Fetched   []*ginger.CollectionItem
 		}{}
 		c, _ := cs.g.GetCollection(cs.collectionName)
 		if c != nil {

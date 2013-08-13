@@ -25,11 +25,11 @@ func TestGinger(t *testing.T) {
 	go ginger.Worker(requests)
 
 	time.Sleep(1 * time.Second)
-	if responses, err := ginger.DB.Scan("fetch"); err == nil {
-		for _, r := range responses {
-			f := r.(ginger.Fetch)
+	if response, err := ginger.DB.Scan("fetch"); err == nil {
+		for _, r := range response.GetItems() {
+			f := r.(*ginger.Fetch)
 			if f.URL == "http://www.eikeon.com/" {
-				if f.Response != nil && f.Response.StatusCode != 0 {
+				if f.StatusCode != 0 {
 					goto found
 				}
 			}

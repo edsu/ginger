@@ -39,7 +39,6 @@ func TestRecord(t *testing.T) {
 	assert.Equal(t, rec.Version, "WARC/1.0")
 	assert.Equal(t, len(rec.Headers), 7)
 	assert.Equal(t, rec.Headers["content-length"], "251")
-	assert.Equal(t, rec.ContentBlockStart, int64(260))
-	assert.Equal(t, rec.ContentBlockEnd, int64(511))
-
+	assert.Equal(t, rec.ContentBlockStart, int64(278))
+	assert.Equal(t, rec.ContentBlockEnd, int64(529))
 }

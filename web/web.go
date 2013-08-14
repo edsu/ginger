@@ -3,6 +3,7 @@ package web
 import (
 	"bytes"
 	"crypto/md5"
+	"encoding/json"
 	"fmt"
 	"go/build"
 	"html/template"
@@ -195,10 +196,12 @@ func (ch *collectionHandler) ServeHTTP(w http.ResponseWriter, req *http.Request)
 				t = getTemplate("templates/" + "collection" + ".html")
 				d["Found"] = true
 			} else if req.Method == "POST" {
-				if err := req.ParseForm(); err == nil {
-					url, ok := req.Form["url"]
+				dec := json.NewDecoder(req.Body)
+				var v map[string]interface{}
+				if err := dec.Decode(&v); err == nil {
+					url, ok := v["url"].(string)
 					if ok {
-						if err := collection.Add(url[0], req.RemoteAddr); err != nil {
+						if err := collection.Add(url, req.RemoteAddr); err != nil {
 							log.Println("Error adding URL:", err)
 						} else {
 							ch.g.StateChanged()

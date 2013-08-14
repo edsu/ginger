@@ -138,6 +138,22 @@ func NewMemoryGinger() *Ginger {
 	if err := DB.CreateTable(collectionitem); err != nil {
 		panic(err)
 	}
+
+	// wait until all tables are active
+	for _, name := range []string{"fetch", "collection", "collectionitem"} {
+		for {
+			if description, err := DB.DescribeTable(name); err != nil {
+				log.Println("DescribeTable err:", err)
+			} else {
+				log.Println(description.Table.TableStatus)
+				if description.Table.TableStatus == "ACTIVE" {
+					break
+				}
+			}
+			time.Sleep(time.Second)
+		}
+	}
+
 	return &Ginger{}
 }
 

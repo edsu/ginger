@@ -11,7 +11,7 @@ import (
 
 func TestGinger(t *testing.T) {
 	requests := queue.NewChannelQueue(nil)
-	g := ginger.NewMemoryGinger()
+	g := ginger.NewMemoryGinger(false)
 	c, err := g.AddCollection("testCollection", "me")
 	assert.Equal(t, err, nil)
 	err = c.Add("http://www.eikeon.com/", "me")

@@ -16,7 +16,7 @@ var DB dynamodb.DynamoDB
 
 type CollectionItem struct {
 	CollectionName string `db:"HASH"`
-	URL            string
+	URL            string `db:"RANGE"`
 	AddedOn        string
 	RequestedOn    string
 	// Last fetched on

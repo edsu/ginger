@@ -37,9 +37,10 @@ func testing(g *ginger.Ginger) {
 
 func main() {
 	address := flag.String("address", ":9999", "http service address")
+	dynamo := flag.Bool("dynamo", false, "use dynamodb")
 	flag.Parse()
 
-	g := ginger.NewMemoryGinger()
+	g := ginger.NewMemoryGinger(*dynamo)
 	web.AddHandlers(g)
 
 	testing(g)

@@ -115,8 +115,12 @@ type Ginger struct {
 	cond *sync.Cond // a rendezvous point for goroutines waiting for or announcing state changed
 }
 
-func NewMemoryGinger() *Ginger {
-	DB = dynamodb.NewMemoryDB()
+func NewMemoryGinger(dynamo bool) *Ginger {
+	if dynamo {
+		DB = dynamodb.NewDynamoDB()
+	} else {
+		DB = dynamodb.NewMemoryDB()
+	}
 	fetch, err := DB.Register("fetch", (*Fetch)(nil))
 	if err != nil {
 		panic(err)

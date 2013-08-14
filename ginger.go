@@ -24,7 +24,7 @@ type CollectionItem struct {
 }
 
 func (ci *CollectionItem) Put() error {
-	return DB.PutItem("collectionitem", ci)
+	return DB.PutItem("collectionitem", DB.ToItem(ci))
 }
 
 func (ci *CollectionItem) Update() error {
@@ -56,7 +56,7 @@ type Fetch struct {
 }
 
 func (req *Fetch) Put() error {
-	return DB.PutItem("fetch", req)
+	return DB.PutItem("fetch", DB.ToItem(req))
 }
 
 func (req *Fetch) Update() error {
@@ -79,7 +79,7 @@ func (c *Collection) Add(URL string, requestedBy string) error {
 }
 
 func (c *Collection) Put() error {
-	return DB.PutItem("collection", c)
+	return DB.PutItem("collection", DB.ToItem(c))
 }
 
 func (c *Collection) Items() (fetch []*CollectionItem) {
@@ -87,8 +87,8 @@ func (c *Collection) Items() (fetch []*CollectionItem) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	for _, i := range response.GetItems() {
-		fetch = append(fetch, i.(*CollectionItem))
+	for _, i := range response.Items {
+		fetch = append(fetch, DB.FromItem("collectionitem", i).(*CollectionItem))
 	}
 	return
 }
@@ -117,16 +117,25 @@ type Ginger struct {
 
 func NewMemoryGinger() *Ginger {
 	DB = dynamodb.NewMemoryDB()
-	DB.Register("fetch", (*Fetch)(nil))
-	DB.Register("collection", (*Collection)(nil))
-	DB.Register("collectionitem", (*CollectionItem)(nil))
-	if err := DB.CreateTable("fetch"); err != nil {
+	fetch, err := DB.Register("fetch", (*Fetch)(nil))
+	if err != nil {
 		panic(err)
 	}
-	if err := DB.CreateTable("collection"); err != nil {
+	collection, err := DB.Register("collection", (*Collection)(nil))
+	if err != nil {
 		panic(err)
 	}
-	if err := DB.CreateTable("collectionitem"); err != nil {
+	collectionitem, err := DB.Register("collectionitem", (*CollectionItem)(nil))
+	if err != nil {
+		panic(err)
+	}
+	if err := DB.CreateTable(fetch); err != nil {
+		panic(err)
+	}
+	if err := DB.CreateTable(collection); err != nil {
+		panic(err)
+	}
+	if err := DB.CreateTable(collectionitem); err != nil {
 		panic(err)
 	}
 	return &Ginger{}
@@ -137,8 +146,8 @@ func (g *Ginger) Collections() (collection []*Collection) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	for _, i := range response.GetItems() {
-		collection = append(collection, i.(*Collection))
+	for _, i := range response.Items {
+		collection = append(collection, DB.FromItem("collection", i).(*Collection))
 	}
 	return
 }
@@ -153,8 +162,8 @@ func (g *Ginger) AddCollection(name string, requestedBy string) (*Collection, er
 }
 
 func (g *Ginger) GetCollection(name string) (*Collection, error) {
-	if item, err := DB.GetItem("collection", &Collection{Name: name}); err == nil {
-		return item.(*Collection), nil
+	if r, err := DB.GetItem("collection", DB.ToKey(&Collection{Name: name})); err == nil {
+		return DB.FromItem("collection", r.Item).(*Collection), nil
 	} else {
 		return nil, err
 	}
@@ -186,8 +195,8 @@ func Qer(requests queue.Queue) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	for _, i := range response.GetItems() {
-		requests.Send(i)
+	for _, i := range response.Items {
+		requests.Send(DB.FromItem("collectionitem", i).(*CollectionItem))
 	}
 }
 

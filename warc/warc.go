@@ -119,7 +119,7 @@ func (wr *WarcReader) readLine() (string, error) {
 		return "", err
 	}
 
-	wr.pos += int64(len(bytes))
+	wr.pos = wr.pos + int64(len(bytes)) + 2
 	return string(bytes), nil
 }
 

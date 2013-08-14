@@ -59,19 +59,10 @@ function GingerCtrl($scope) {
     };
 
     $scope.addURL = function(collectionName, url) {
-        $.ajax({
-            url: "/collection/" + collectionName + "/?" + $.now(),
+        $.ajax("/collection/" + collectionName + "/", {
             type: "POST",
-            cache: false,
-            data: {
-                "url": url},
-            statusCode: {
-                404: function() {
-                },
-                200: function() {
-                }
-            },
-            dataType: "html"
+            data: JSON.stringify({url: url}),
+            contentType: "application/json"
         });
         $scope.url = "";
     };

@@ -207,7 +207,11 @@ func (ch *collectionHandler) ServeHTTP(w http.ResponseWriter, req *http.Request)
 							ch.g.StateChanged()
 							http.Redirect(w, req, req.URL.Path+"/", http.StatusCreated)
 						}
+					} else {
+						log.Printf("not string as expected: %#v, %T\n", v["url"], v["url"])
 					}
+				} else {
+					log.Println("couldn't add URL:", err)
 				}
 				// TODO: write a response
 			} else {

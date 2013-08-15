@@ -74,7 +74,10 @@ type Collection struct {
 func (c *Collection) Add(URL string, requestedBy string) error {
 	now := time.Now().Format(time.RFC3339Nano)
 	f := &CollectionItem{CollectionName: c.Name, URL: URL, AddedOn: now, RequestedOn: now} // TODO: requestedBy
-	f.Put()
+	err := f.Put()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

@@ -110,8 +110,8 @@ func (cs *collectionsServer) CollectionsServer(ws *websocket.Conn) {
 }
 
 type collectionServer struct {
-	g              *ginger.Ginger
-	collectionName string
+	g          *ginger.Ginger
+	collection *ginger.Collection
 }
 
 func (cs *collectionServer) CollectionServer(ws *websocket.Conn) {
@@ -131,7 +131,7 @@ func (cs *collectionServer) CollectionServer(ws *websocket.Conn) {
 			Requested []*ginger.CollectionItem
 			Fetched   []*ginger.CollectionItem
 		}{}
-		c, _ := cs.g.GetCollection(cs.collectionName)
+		c, _ := cs.c
 		if c != nil {
 			state.Requested = c.Requested()
 			state.Fetched = c.Fetched()
@@ -141,6 +141,22 @@ func (cs *collectionServer) CollectionServer(ws *websocket.Conn) {
 			return
 		}
 		cs.g.WaitStateChanged()
+	}
+}
+
+func (cs *collectionServer) Add(ws *websocket.Conn) {
+	for {
+
+		var url string
+		websocket.Message.Receive(ws, &url)
+
+		message := "added:" + url
+
+		if _, err := cs.c.Add(url, ws.RemoteAddr().String()); err != nil {
+			message = fmt.Sprintf("error:", err)
+		}
+
+		websocket.Message.Send(ws, message)
 	}
 }
 
@@ -213,13 +229,17 @@ func (ch *collectionHandler) ServeHTTP(w http.ResponseWriter, req *http.Request)
 				} else {
 					log.Println("couldn't add URL:", err)
 				}
+				req.Body.Close()
 				// TODO: write a response
 			} else {
 				w.WriteHeader(http.StatusMethodNotAllowed)
 			}
 		} else if rest == "state" {
-			cs := &collectionServer{ch.g, name}
+			cs := &collectionServer{ch.g, collection}
 			websocket.Handler(cs.CollectionServer).ServeHTTP(w, req)
+		} else if rest == "add" {
+			cs := &collectionServer{ch.g, collection}
+			websocket.Handler(cs.Add).ServeHTTP(w, req)
 		} else {
 			w.WriteHeader(http.StatusNotFound)
 			t = getTemplate("templates/" + "collection" + ".html")

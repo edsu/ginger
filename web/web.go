@@ -131,10 +131,9 @@ func (cs *collectionServer) CollectionServer(ws *websocket.Conn) {
 			Requested []*ginger.CollectionItem
 			Fetched   []*ginger.CollectionItem
 		}{}
-		c, _ := cs.c
-		if c != nil {
-			state.Requested = c.Requested()
-			state.Fetched = c.Fetched()
+		if cs.collection != nil {
+			state.Requested = cs.collection.Requested()
+			state.Fetched = cs.collection.Fetched()
 		}
 		if err := websocket.JSON.Send(ws, state); err != nil {
 			log.Println("State Websocket send err:", err)
@@ -152,7 +151,7 @@ func (cs *collectionServer) Add(ws *websocket.Conn) {
 
 		message := "added:" + url
 
-		if _, err := cs.c.Add(url, ws.RemoteAddr().String()); err != nil {
+		if err := cs.collection.Add(url, ws.RemoteAddr().String()); err != nil {
 			message = fmt.Sprintf("error:", err)
 		}
 

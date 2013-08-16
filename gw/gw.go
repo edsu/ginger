@@ -37,12 +37,16 @@ func testing(g *ginger.Ginger) {
 
 func main() {
 	address := flag.String("address", ":9999", "http service address")
+	dynamo := flag.Bool("dynamo", false, "use dynamodb")
+	standalone := flag.Bool("standalone", false, "run full stack")
 	flag.Parse()
 
-	g := ginger.NewMemoryGinger()
+	g := ginger.NewMemoryGinger(*dynamo)
 	web.AddHandlers(g)
 
-	testing(g)
+	if *standalone {
+		testing(g)
+	}
 
 	go func() {
 		log.Println("server listening on:", *address)

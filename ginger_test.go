@@ -11,7 +11,7 @@ import (
 
 func TestGinger(t *testing.T) {
 	requests := queue.NewChannelQueue(nil)
-	g := ginger.NewMemoryGinger()
+	g := ginger.NewMemoryGinger(false)
 	c, err := g.AddCollection("testCollection", "me")
 	assert.Equal(t, err, nil)
 	err = c.Add("http://www.eikeon.com/", "me")
@@ -26,8 +26,8 @@ func TestGinger(t *testing.T) {
 
 	time.Sleep(1 * time.Second)
 	if response, err := ginger.DB.Scan("fetch"); err == nil {
-		for _, r := range response.GetItems() {
-			f := r.(*ginger.Fetch)
+		for _, i := range response.Items {
+			f := ginger.DB.FromItem("fetch", i).(*ginger.Fetch)
 			if f.URL == "http://www.eikeon.com/" {
 				if f.StatusCode != 0 {
 					goto found

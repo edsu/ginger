@@ -16,7 +16,7 @@ var DB dynamodb.DynamoDB
 
 type CollectionItem struct {
 	CollectionName string `db:"HASH"`
-	URL            string
+	URL            string `db:"RANGE"`
 	AddedOn        string
 	RequestedOn    string
 	// Last fetched on
@@ -74,7 +74,10 @@ type Collection struct {
 func (c *Collection) Add(URL string, requestedBy string) error {
 	now := time.Now().Format(time.RFC3339Nano)
 	f := &CollectionItem{CollectionName: c.Name, URL: URL, AddedOn: now, RequestedOn: now} // TODO: requestedBy
-	f.Put()
+	err := f.Put()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -115,8 +118,12 @@ type Ginger struct {
 	cond *sync.Cond // a rendezvous point for goroutines waiting for or announcing state changed
 }
 
-func NewMemoryGinger() *Ginger {
-	DB = dynamodb.NewMemoryDB()
+func NewMemoryGinger(dynamo bool) *Ginger {
+	if dynamo {
+		DB = dynamodb.NewDynamoDB()
+	} else {
+		DB = dynamodb.NewMemoryDB()
+	}
 	fetch, err := DB.Register("fetch", (*Fetch)(nil))
 	if err != nil {
 		panic(err)
@@ -138,6 +145,22 @@ func NewMemoryGinger() *Ginger {
 	if err := DB.CreateTable(collectionitem); err != nil {
 		panic(err)
 	}
+
+	// wait until all tables are active
+	for _, name := range []string{"fetch", "collection", "collectionitem"} {
+		for {
+			if description, err := DB.DescribeTable(name); err != nil {
+				log.Println("DescribeTable err:", err)
+			} else {
+				log.Println(description.Table.TableStatus)
+				if description.Table.TableStatus == "ACTIVE" {
+					break
+				}
+			}
+			time.Sleep(time.Second)
+		}
+	}
+
 	return &Ginger{}
 }
 

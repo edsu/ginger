@@ -1,5 +1,39 @@
 {{define "content"}}
 
-<h1>Ginger</h1>
+
+
+<div ng-controller="GingerCtrl">
+
+  <div class="row">
+    <div class="col-lg-12">
+      <h1>Ginger</h1>
+
+      <form ng-submit="addURL(url)" autocomplete="off">
+	<fieldset>
+	  <div class="form-group">
+	    <label for="addURL">Add:</label>
+	    <input id="addURL" class="input-block-level" type="text" ng-model="url" placeholder="url to add">
+	  </div>
+	  <!--<button type="submit" class="btn">Add</button>-->
+	</fieldset>
+      </form>
+
+      <h3>Requested</h3>
+      <ul>
+	<li ng-repeat="fetch in state.Requested">
+	  <a href="/resource/[[fetch.URLHash]]/[[fetch.RequestedOn]]/">[[fetch.URL]]</a> <small>requested on: ([[fetch.RequestedOn]])</small>
+	</li>
+      </ul>
+
+      <h3>Fetched</h3>
+      <ul>
+	<li ng-repeat="fetch in state.Fetched">
+	  <a href="/resource/[[fetch.URLHash]]/[[fetch.RequestedOn]]/">[[fetch.URL]]</a> <small>fetched on: ([[fetch.FetchedOn]])</small>
+	</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
 
 {{end}}

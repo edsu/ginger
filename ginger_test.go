@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bmizerany/assert"
 	"github.com/eikeon/ginger"
 	"github.com/eikeon/ginger/queue"
 )
@@ -12,12 +11,11 @@ import (
 func TestGinger(t *testing.T) {
 	requests := queue.NewChannelQueue(nil)
 	g := ginger.NewMemoryGinger(false)
-	c, err := g.AddCollection("testCollection", "me")
-	assert.Equal(t, err, nil)
-	err = c.Add("http://www.eikeon.com/", "me")
+
+	err := g.Add("http://www.eikeon.com/", "me")
 
 	if err != nil {
-		t.Error("unable to fetch http://eikeon.com/")
+		t.Error("unable to add fetch request for http://eikeon.com/")
 	}
 
 	ginger.Qer(requests)

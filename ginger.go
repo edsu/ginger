@@ -2,9 +2,11 @@ package ginger
 
 import (
 	"crypto/md5"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
@@ -14,89 +16,80 @@ import (
 
 var DB dynamodb.DynamoDB
 
-type CollectionItem struct {
-	CollectionName string `db:"HASH"`
-	URL            string `db:"RANGE"`
-	AddedOn        string
-	RequestedOn    string
-	// Last fetched on
-	FetchedOn string
-}
-
-func (ci *CollectionItem) Put() error {
-	return DB.PutItem("collectionitem", DB.ToItem(ci))
-}
-
-func (ci *CollectionItem) Update() error {
-	return ci.Put()
-}
-
 func urlHash(URL string) string {
 	h := md5.New()
 	io.WriteString(h, URL)
-	return string(h.Sum(nil))
+	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
-type Resource struct {
+type FetchRequest struct {
+	Host        string `db:"HASH"`
 	URLHash     string
-	AddedOn     string
-	UpdatedOn   string
 	URL         string
-	Collections []string
+	RequestedOn string `db:"RANGE"`
+	RequestedBy string
+}
+
+func NewFetchRequest(URL string) (*FetchRequest, error) {
+	if u, err := url.Parse(URL); err == nil {
+		now := time.Now().Format(time.RFC3339Nano)
+		return &FetchRequest{Host: u.Host, URL: URL, RequestedOn: now}, nil
+	} else {
+		return nil, err
+	}
 }
 
 type Fetch struct {
-	URLHash     string `db:"HASH"`
-	RequestedOn string
-	FetchedOn   string
-	URL         string
-	// Response
+	Host          string `db:"HASH"`
+	URLHash       string
+	URL           string
+	FetchedOn     string `db:"RANGE"`
 	StatusCode    int
 	ContentLength int64
 }
 
-func (req *Fetch) Put() error {
-	return DB.PutItem("fetch", DB.ToItem(req))
+func NewFetch(URL string) (*Fetch, error) {
+	if u, err := url.Parse(URL); err == nil {
+		now := time.Now().Format(time.RFC3339Nano)
+		return &Fetch{Host: u.Host, URL: URL, FetchedOn: now}, nil
+	} else {
+		return nil, err
+	}
 }
 
-func (req *Fetch) Update() error {
+func (req *FetchRequest) Put() error {
+	return DB.PutItem("fetchrequest", DB.ToItem(req))
+}
+
+func (req *FetchRequest) Update() error {
 	return req.Put()
 }
 
-type FetchResponse struct {
-}
-
-type Collection struct {
-	Name        string `db:"HASH"`
-	RequestedBy string
-}
-
-func (c *Collection) Add(URL string, requestedBy string) error {
-	now := time.Now().Format(time.RFC3339Nano)
-	f := &CollectionItem{CollectionName: c.Name, URL: URL, AddedOn: now, RequestedOn: now} // TODO: requestedBy
-	err := f.Put()
-	if err != nil {
+func (c *Ginger) Add(URL string, requestedBy string) error {
+	if f, err := NewFetchRequest(URL); err == nil {
+		err := f.Put()
+		if err != nil {
+			return err
+		}
+	} else {
 		return err
 	}
+
 	return nil
 }
 
-func (c *Collection) Put() error {
-	return DB.PutItem("collection", DB.ToItem(c))
-}
-
-func (c *Collection) Items() (fetch []*CollectionItem) {
-	response, err := DB.Scan("collectionitem")
+func (c *Ginger) Items() (fetch []*FetchRequest) {
+	response, err := DB.Scan("fetchrequest")
 	if err != nil {
 		log.Fatal(err)
 	}
 	for _, i := range response.Items {
-		fetch = append(fetch, DB.FromItem("collectionitem", i).(*CollectionItem))
+		fetch = append(fetch, DB.FromItem("fetchrequest", i).(*FetchRequest))
 	}
 	return
 }
 
-func (c *Collection) Requested() (requested []*CollectionItem) {
+func (c *Ginger) Requested() (requested []*FetchRequest) {
 	for _, fetch := range c.Items() {
 		if fetch.RequestedOn != "" {
 			requested = append(requested, fetch)
@@ -105,11 +98,13 @@ func (c *Collection) Requested() (requested []*CollectionItem) {
 	return
 }
 
-func (c *Collection) Fetched() (fetched []*CollectionItem) {
-	for _, fetch := range c.Items() {
-		if fetch.FetchedOn != "" {
-			fetched = append(fetched, fetch)
-		}
+func (c *Ginger) Fetched() (fetch []*Fetch) {
+	response, err := DB.Scan("fetch")
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, i := range response.Items {
+		fetch = append(fetch, DB.FromItem("fetch", i).(*Fetch))
 	}
 	return
 }
@@ -124,30 +119,23 @@ func NewMemoryGinger(dynamo bool) *Ginger {
 	} else {
 		DB = dynamodb.NewMemoryDB()
 	}
+	fetchrequest, err := DB.Register("fetchrequest", (*FetchRequest)(nil))
+	if err != nil {
+		panic(err)
+	}
 	fetch, err := DB.Register("fetch", (*Fetch)(nil))
 	if err != nil {
 		panic(err)
 	}
-	collection, err := DB.Register("collection", (*Collection)(nil))
-	if err != nil {
-		panic(err)
-	}
-	collectionitem, err := DB.Register("collectionitem", (*CollectionItem)(nil))
-	if err != nil {
-		panic(err)
+	if err := DB.CreateTable(fetchrequest); err != nil {
+		log.Println(err)
 	}
 	if err := DB.CreateTable(fetch); err != nil {
-		panic(err)
-	}
-	if err := DB.CreateTable(collection); err != nil {
-		panic(err)
-	}
-	if err := DB.CreateTable(collectionitem); err != nil {
-		panic(err)
+		log.Println(err)
 	}
 
 	// wait until all tables are active
-	for _, name := range []string{"fetch", "collection", "collectionitem"} {
+	for _, name := range []string{"fetchrequest", "fetch"} {
 		for {
 			if description, err := DB.DescribeTable(name); err != nil {
 				log.Println("DescribeTable err:", err)
@@ -162,34 +150,6 @@ func NewMemoryGinger(dynamo bool) *Ginger {
 	}
 
 	return &Ginger{}
-}
-
-func (g *Ginger) Collections() (collection []*Collection) {
-	response, err := DB.Scan("collection")
-	if err != nil {
-		log.Fatal(err)
-	}
-	for _, i := range response.Items {
-		collection = append(collection, DB.FromItem("collection", i).(*Collection))
-	}
-	return
-}
-
-func (g *Ginger) AddCollection(name string, requestedBy string) (*Collection, error) {
-	c := &Collection{name, requestedBy}
-	if err := c.Put(); err != nil {
-		return nil, err
-	}
-	g.StateChanged()
-	return c, nil
-}
-
-func (g *Ginger) GetCollection(name string) (*Collection, error) {
-	if r, err := DB.GetItem("collection", DB.ToKey(&Collection{Name: name})); err == nil {
-		return DB.FromItem("collection", r.Item).(*Collection), nil
-	} else {
-		return nil, err
-	}
 }
 
 func (m *Ginger) getStateCond() *sync.Cond {
@@ -214,34 +174,34 @@ func (m *Ginger) WaitStateChanged() {
 }
 
 func Qer(requests queue.Queue) {
-	response, err := DB.Scan("collectionitem")
+	response, err := DB.Scan("fetchrequest")
 	if err != nil {
 		log.Fatal(err)
 	}
 	for _, i := range response.Items {
-		requests.Send(DB.FromItem("collectionitem", i).(*CollectionItem))
+		requests.Send(DB.FromItem("fetchrequest", i).(*FetchRequest))
 	}
 }
 
 func Worker(requests queue.Queue) {
 	for {
-		var collectionitem CollectionItem
-		err := requests.Receive(&collectionitem)
+		var fetchrequest FetchRequest
+		err := requests.Receive(&fetchrequest)
 		if err != nil {
 			log.Println("Done fetching")
 			break
 		}
-		r, err := http.Get(collectionitem.URL)
+		r, err := http.Get(fetchrequest.URL)
 		if err != nil {
 			log.Fatal(err)
 		}
-		now := time.Now().Format(time.RFC3339Nano)
-		fetch := &Fetch{URLHash: urlHash(collectionitem.URL), URL: collectionitem.URL, FetchedOn: now} // TODO: requestedBy
-		fetch.StatusCode = r.StatusCode
-		fetch.ContentLength = r.ContentLength
-		fetch.Put()
-		collectionitem.RequestedOn = ""
-		collectionitem.FetchedOn = now
-		collectionitem.Update()
+		if fetch, err := NewFetch(fetchrequest.URL); err == nil {
+			fetch.StatusCode = r.StatusCode
+			fetch.ContentLength = r.ContentLength
+			DB.PutItem("fetch", DB.ToItem(fetch))
+		} else {
+			log.Println(err)
+		}
+		// delete fetchrequest
 	}
 }

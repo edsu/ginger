@@ -40,26 +40,8 @@ function GingerCtrl($scope) {
         $scope.connection.close();
     });
 
-    $scope.addCollection = function(name) {
-        $.ajax({
-            url: "/collection/?" + $.now(),
-            type: "POST",
-            cache: false,
-            data: {
-                "name": name},
-            statusCode: {
-                404: function() {
-                },
-                200: function() {
-                }
-            },
-            dataType: "html"
-        });
-        $scope.collectionName = "";
-    };
-
-    $scope.addURL = function(collectionName, url) {
-        $.ajax("/collection/" + collectionName + "/", {
+    $scope.addURL = function(url) {
+        $.ajax("/", {
             type: "POST",
             data: JSON.stringify({url: url}),
             contentType: "application/json"

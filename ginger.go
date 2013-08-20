@@ -202,6 +202,6 @@ func Worker(requests queue.Queue) {
 		} else {
 			log.Println(err)
 		}
-		// delete fetchrequest
+		DB.DeleteItem(dynamodb.DeleteItem{TableName: "fetchrequest", Key: DB.ToKey(&fetchrequest)})
 	}
 }

@@ -127,6 +127,10 @@ func NewMemoryGinger(dynamo bool) *Ginger {
 	if err != nil {
 		panic(err)
 	}
+
+	fetchrequest.ProvisionedThroughput.ReadCapacityUnits = 10000
+	fetchrequest.ProvisionedThroughput.WriteCapacityUnits = 10000
+
 	if err := DB.CreateTable(fetchrequest); err != nil {
 		log.Println(err)
 	}

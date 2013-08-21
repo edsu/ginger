@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/eikeon/ginger"
+	"github.com/stathat/go"
 )
 
 func readUrls(urls chan string) {
@@ -32,8 +33,13 @@ func readUrls(urls chan string) {
 
 func sendUrls(urls chan string, name string) {
 	g := ginger.NewMemoryGinger(true)
+	count := 0
 	for url := range urls {
+		count += 1
 		g.Add(url, name)
+		if count%1000 == 0 {
+			stathat.PostEZCount("gingerload", "eikeon@eikeon.com", 1000)
+		}
 	}
 }
 

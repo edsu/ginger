@@ -58,7 +58,8 @@ func NewFetch(URL string) (*Fetch, error) {
 }
 
 func (req *FetchRequest) Put() error {
-	return DB.PutItem("fetchrequest", DB.ToItem(req))
+	_, err := DB.PutItem("fetchrequest", DB.ToItem(req), nil)
+	return err
 }
 
 func (req *FetchRequest) Update() error {
@@ -79,7 +80,7 @@ func (c *Ginger) Add(URL string, requestedBy string) error {
 }
 
 func (c *Ginger) Items() (fetch []*FetchRequest) {
-	response, err := DB.Scan("fetchrequest")
+	response, err := DB.Scan("fetchrequest", nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -99,7 +100,7 @@ func (c *Ginger) Requested() (requested []*FetchRequest) {
 }
 
 func (c *Ginger) Fetched() (fetch []*Fetch) {
-	response, err := DB.Scan("fetch")
+	response, err := DB.Scan("fetch", nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -127,21 +128,18 @@ func NewMemoryGinger(dynamo bool) *Ginger {
 	if err != nil {
 		panic(err)
 	}
-
-	fetchrequest.ProvisionedThroughput.ReadCapacityUnits = 10000
-	fetchrequest.ProvisionedThroughput.WriteCapacityUnits = 10000
-
-	if err := DB.CreateTable(fetchrequest); err != nil {
+	pt := dynamodb.ProvisionedThroughput{ReadCapacityUnits: 1024, WriteCapacityUnits: 1024}
+	if _, err := DB.CreateTable("fetchrequest", fetchrequest.AttributeDefinitions, fetchrequest.KeySchema, pt, nil); err != nil {
 		log.Println(err)
 	}
-	if err := DB.CreateTable(fetch); err != nil {
+	if _, err := DB.CreateTable("fetch", fetch.AttributeDefinitions, fetch.KeySchema, dynamodb.ProvisionedThroughput{ReadCapacityUnits: 1, WriteCapacityUnits: 1}, nil); err != nil {
 		log.Println(err)
 	}
 
 	// wait until all tables are active
 	for _, name := range []string{"fetchrequest", "fetch"} {
 		for {
-			if description, err := DB.DescribeTable(name); err != nil {
+			if description, err := DB.DescribeTable(name, nil); err != nil {
 				log.Println("DescribeTable err:", err)
 			} else {
 				log.Println(description.Table.TableStatus)
@@ -178,7 +176,7 @@ func (m *Ginger) WaitStateChanged() {
 }
 
 func Qer(requests queue.Queue) {
-	response, err := DB.Scan("fetchrequest")
+	response, err := DB.Scan("fetchrequest", nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -202,10 +200,10 @@ func Worker(requests queue.Queue) {
 		if fetch, err := NewFetch(fetchrequest.URL); err == nil {
 			fetch.StatusCode = r.StatusCode
 			fetch.ContentLength = r.ContentLength
-			DB.PutItem("fetch", DB.ToItem(fetch))
+			DB.PutItem("fetch", DB.ToItem(fetch), nil)
 		} else {
 			log.Println(err)
 		}
-		DB.DeleteItem(dynamodb.DeleteItem{TableName: "fetchrequest", Key: DB.ToKey(&fetchrequest)})
+		DB.DeleteItem("fetchrequest", DB.ToKey(&fetchrequest), nil)
 	}
 }

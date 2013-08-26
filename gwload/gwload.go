@@ -46,13 +46,13 @@ func sendUrls(urls chan string, name string) {
 }
 
 func main() {
-	urls := make(chan string)
+	urls := make(chan string, 65536)
 	hostname, _ := os.Hostname()
 
 	go readUrls(urls)
 
 	var wg sync.WaitGroup
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 64; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

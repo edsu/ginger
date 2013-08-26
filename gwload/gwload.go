@@ -21,7 +21,9 @@ func readUrls(urls chan string) {
 			log.Println("uhoh, line too long for buffer ", line)
 		} else if err == nil {
 			cols := strings.Split(string(line), "\t")
-			urls <- cols[2]
+			if len(cols) == 3 {
+				urls <- cols[2]
+			}
 		} else if err == io.EOF {
 			break
 		} else {

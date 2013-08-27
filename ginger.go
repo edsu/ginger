@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -12,9 +13,11 @@ import (
 
 	"github.com/eikeon/dynamodb"
 	"github.com/eikeon/ginger/queue"
+	"github.com/eikeon/sns"
 )
 
 var DB dynamodb.DynamoDB
+var SNS sns.SNS
 
 func urlHash(URL string) string {
 	h := md5.New()
@@ -57,6 +60,49 @@ func NewFetch(URL string) (*Fetch, error) {
 	}
 }
 
+func (f *Fetch) NumFetchesLast(d time.Duration) int {
+	now := time.Now()
+	start := now.Add(-d)
+	f1 := start.Format(time.RFC3339Nano)
+	f2 := now.Format(time.RFC3339Nano)
+	conditions := dynamodb.KeyConditions{"Host": {[]dynamodb.AttributeValue{{"S": f.Host}}, "EQ"}, "FetchedOn": {[]dynamodb.AttributeValue{{"S": f1}, {"S": f2}}, "BETWEEN"}}
+	if qr, err := DB.Query("fetch", &dynamodb.QueryOptions{KeyConditions: conditions, Select: "COUNT"}); err == nil {
+		return qr.Count
+	} else {
+		log.Println("query error:", err)
+	}
+	return 0
+}
+
+func (f *Fetch) Fetch() error {
+	c := http.DefaultTransport
+	req, err := http.NewRequest("GET", f.URL, nil)
+	if err != nil {
+		return err
+	}
+	f.FetchedOn = time.Now().Format(time.RFC3339Nano)
+	if r, err := c.RoundTrip(req); err != nil {
+		return err
+	} else {
+		f.StatusCode = r.StatusCode
+		if _, err := ioutil.ReadAll(r.Body); err == nil {
+			r.Body.Close()
+		} else {
+			log.Println("ReadAll err:", err)
+		}
+		f.ContentLength = r.ContentLength
+		if err := f.Put(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (f *Fetch) Put() error {
+	_, err := DB.PutItem("fetch", DB.ToItem(f), nil)
+	return err
+}
+
 func (req *FetchRequest) Put() error {
 	_, err := DB.PutItem("fetchrequest", DB.ToItem(req), nil)
 	return err
@@ -66,16 +112,12 @@ func (req *FetchRequest) Update() error {
 	return req.Put()
 }
 
+var options = url.Values{"TopicArn": []string{"arn:aws:sns:us-east-1:966103638140:ginger-test"}}
+
 func (c *Ginger) Add(URL string, requestedBy string) error {
-	if f, err := NewFetchRequest(URL); err == nil {
-		err := f.Put()
-		if err != nil {
-			return err
-		}
-	} else {
+	if _, err := SNS.Publish(URL, options); err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -115,6 +157,7 @@ type Ginger struct {
 }
 
 func NewMemoryGinger(dynamo bool) *Ginger {
+	SNS = sns.NewSNS()
 	if dynamo {
 		DB = dynamodb.NewDynamoDB()
 	} else {

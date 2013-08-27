@@ -38,7 +38,9 @@ func sendUrls(urls chan string, name string) {
 	count := 0
 	for url := range urls {
 		count += 1
-		g.Add(url, name)
+		if err := g.Add(url, name); err != nil {
+			log.Println("error:", err)
+		}
 		if count%1000 == 0 {
 			stathat.PostEZCount("gingerload", "eikeon@eikeon.com", 1000)
 		}

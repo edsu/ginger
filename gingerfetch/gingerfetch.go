@@ -8,11 +8,14 @@ import (
 	"time"
 
 	"github.com/eikeon/ginger"
+	"github.com/stathat/go"
 	"launchpad.net/goamz/aws"
 	"launchpad.net/~prudhvikrishna/goamz/sqs"
 )
 
 func fetcher(q *sqs.Queue) {
+	count := 0
+	count_throttled := 0
 	for {
 	receiveMessage:
 		resp, err := q.ReceiveMessage([]string{"All"}, 1, 3600)
@@ -40,17 +43,27 @@ func fetcher(q *sqs.Queue) {
 					if f.NumFetchesLast(d) < 1 {
 						if err := f.Fetch(); err != nil {
 							log.Println("err:", err)
+						} else {
+							count += 1
+							const N = 100
+							if count%N == 0 {
+								stathat.PostEZCount("gingerfetch", "eikeon@eikeon.com", N)
+							}
+						}
+					} else {
+						count_throttled += 1
+						log.Println("throttling:", url)
+						const N = 100
+						if count_throttled%N == 0 {
+							stathat.PostEZCount("gingerfetch (throttled)", "eikeon@eikeon.com", N)
 						}
 
-					} else {
-						log.Println("throttling:", url)
 					}
 				} else {
 					log.Println(err)
 					continue
 				}
 			}
-			//panic("boo")
 		deleteMessage:
 			_, err = q.DeleteMessage(message.ReceiptHandle)
 			if err != nil {

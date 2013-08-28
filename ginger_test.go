@@ -10,12 +10,14 @@ import (
 
 func TestGinger(t *testing.T) {
 	requests := queue.NewChannelQueue(nil)
-	g := ginger.NewMemoryGinger(false)
+	ginger.NewMemoryGinger(false)
 
-	err := g.Add("http://www.eikeon.com/", "me")
-
-	if err != nil {
-		t.Error("unable to add fetch request for http://eikeon.com/")
+	if f, err := ginger.NewFetch("http://www.eikeon.com/"); err == nil {
+		f.URL = "http://www.eikeon.com/"
+		f.Fetch()
+		f.Put()
+	} else {
+		t.Error("unable to add fetch for http://eikeon.com/")
 	}
 
 	ginger.Qer(requests)
@@ -23,7 +25,7 @@ func TestGinger(t *testing.T) {
 	go ginger.Worker(requests)
 
 	time.Sleep(1 * time.Second)
-	if response, err := ginger.DB.Scan("fetch"); err == nil {
+	if response, err := ginger.DB.Scan("fetch", nil); err == nil {
 		for _, i := range response.Items {
 			f := ginger.DB.FromItem("fetch", i).(*ginger.Fetch)
 			if f.URL == "http://www.eikeon.com/" {

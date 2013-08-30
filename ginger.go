@@ -49,6 +49,7 @@ type Fetch struct {
 	FetchedOn     string `db:"RANGE"`
 	StatusCode    int
 	ContentLength int64
+	Error         string
 }
 
 func NewFetch(URL string) (*Fetch, error) {
@@ -74,15 +75,15 @@ func (f *Fetch) NumFetchesLast(d time.Duration) int {
 	return 0
 }
 
-func (f *Fetch) Fetch() error {
+func (f *Fetch) Fetch() {
 	c := http.DefaultTransport
 	req, err := http.NewRequest("GET", f.URL, nil)
 	if err != nil {
-		return err
+		f.Error = err.Error()
 	}
 	f.FetchedOn = time.Now().Format(time.RFC3339Nano)
 	if r, err := c.RoundTrip(req); err != nil {
-		return err
+		f.Error = err.Error()
 	} else {
 		f.StatusCode = r.StatusCode
 		if _, err := ioutil.ReadAll(r.Body); err == nil {
@@ -91,11 +92,7 @@ func (f *Fetch) Fetch() error {
 			log.Println("ReadAll err:", err)
 		}
 		f.ContentLength = r.ContentLength
-		if err := f.Put(); err != nil {
-			return err
-		}
 	}
-	return nil
 }
 
 func (f *Fetch) Put() error {

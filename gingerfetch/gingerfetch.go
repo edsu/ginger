@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"log"
+	"math/rand"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -16,9 +18,11 @@ import (
 func fetcher(q *sqs.Queue) {
 	count := 0
 	count_throttled := 0
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	for {
 	receiveMessage:
-		resp, err := q.ReceiveMessage([]string{"All"}, 1, 3600)
+		delay := 30 + r.Intn(100)
+		resp, err := q.ReceiveMessage([]string{"All"}, 1, delay)
 		if err != nil {
 			log.Println("Error receiving message:", err)
 			time.Sleep(time.Second)
@@ -41,14 +45,21 @@ func fetcher(q *sqs.Queue) {
 				if f, err := ginger.NewFetch(url); err == nil {
 					d := time.Second
 					if f.NumFetchesLast(d) < 1 {
-						if err := f.Fetch(); err != nil {
-							log.Println("err:", err)
-						} else {
-							count += 1
-							const N = 100
-							if count%N == 0 {
-								stathat.PostEZCount("gingerfetch", "eikeon@eikeon.com", N)
-							}
+						f.Fetch()
+						count += 1
+						const N = 100
+						if count%N == 0 {
+							stathat.PostEZCount("gingerfetch", "eikeon@eikeon.com", N)
+						}
+						if err := f.Put(); err != nil {
+							log.Println("Error putting fetch:", err)
+						}
+					deleteMessage:
+						_, err = q.DeleteMessage(message.ReceiptHandle)
+						if err != nil {
+							log.Println("error deleting message:", err)
+							time.Sleep(100 * time.Millisecond)
+							goto deleteMessage
 						}
 					} else {
 						count_throttled += 1
@@ -61,21 +72,15 @@ func fetcher(q *sqs.Queue) {
 					}
 				} else {
 					log.Println(err)
-					continue
 				}
-			}
-		deleteMessage:
-			_, err = q.DeleteMessage(message.ReceiptHandle)
-			if err != nil {
-				log.Println("error deleting message:", err)
-				time.Sleep(100 * time.Millisecond)
-				goto deleteMessage
 			}
 		}
 	}
 }
 
 func main() {
+	runtime.GOMAXPROCS(runtime.NumCPU())
+
 	_ = ginger.NewMemoryGinger(true)
 
 auth:
@@ -96,7 +101,7 @@ getQueue:
 		goto getQueue
 	}
 
-	const C = 16
+	const C = 64
 
 	var wg sync.WaitGroup
 	wg.Add(C)

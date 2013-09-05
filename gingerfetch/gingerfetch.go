@@ -43,13 +43,12 @@ func fetcher(q *sqs.Queue) {
 				log.Println("url:", url)
 
 				if f, err := ginger.NewFetch(url); err == nil {
-					d := time.Second
-					if f.NumFetchesLast(d) < 1 {
+					if f.NumFetchesLast(time.Second) < 1 {
 						f.Fetch()
 						count += 1
 						const N = 100
 						if count%N == 0 {
-							stathat.PostEZCount("gingerfetch", "eikeon@eikeon.com", N)
+							go stathat.PostEZCount("gingerfetch", "eikeon@eikeon.com", N)
 						}
 						if err := f.Put(); err != nil {
 							log.Println("Error putting fetch:", err)
@@ -66,12 +65,12 @@ func fetcher(q *sqs.Queue) {
 						log.Println("throttling:", url)
 						const N = 100
 						if count_throttled%N == 0 {
-							stathat.PostEZCount("gingerfetch (throttled)", "eikeon@eikeon.com", N)
+							go stathat.PostEZCount("gingerfetch (throttled)", "eikeon@eikeon.com", N)
 						}
 
 					}
 				} else {
-					log.Println(err)
+					log.Println("could not create new fetch:", err)
 				}
 			}
 		}

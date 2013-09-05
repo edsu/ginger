@@ -99,11 +99,9 @@ func (cs *gingerServer) GingerServer(ws *websocket.Conn) {
 	}()
 	for {
 		state := struct {
-			Requested []*ginger.FetchRequest
-			Fetched   []*ginger.Fetch
+			Fetched []*ginger.Fetch
 		}{}
 		if cs.g != nil {
-			state.Requested = cs.g.Requested()
 			state.Fetched = cs.g.Fetched()
 		}
 		if err := websocket.JSON.Send(ws, state); err != nil {

@@ -58,7 +58,10 @@ func (f *Fetch) NumFetchesLast(d time.Duration) int {
 }
 
 func (f *Fetch) Fetch() {
-	c := http.DefaultTransport
+	c := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		ResponseHeaderTimeout: time.Second * 60,
+	}
 	req, err := http.NewRequest("GET", f.URL, nil)
 	if err != nil {
 		f.Error = err.Error()

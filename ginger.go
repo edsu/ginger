@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/eikeon/dynamodb"
-	"github.com/eikeon/ginger/queue"
 	"github.com/eikeon/sns"
 )
 
@@ -23,23 +22,6 @@ func urlHash(URL string) string {
 	h := md5.New()
 	io.WriteString(h, URL)
 	return fmt.Sprintf("%x", h.Sum(nil))
-}
-
-type FetchRequest struct {
-	Host        string `db:"HASH"`
-	URLHash     string
-	URL         string
-	RequestedOn string `db:"RANGE"`
-	RequestedBy string
-}
-
-func NewFetchRequest(URL string) (*FetchRequest, error) {
-	if u, err := url.Parse(URL); err == nil {
-		now := time.Now().Format(time.RFC3339Nano)
-		return &FetchRequest{Host: u.Host, URL: URL, RequestedOn: now}, nil
-	} else {
-		return nil, err
-	}
 }
 
 type Fetch struct {
@@ -86,27 +68,21 @@ func (f *Fetch) Fetch() {
 		f.Error = err.Error()
 	} else {
 		f.StatusCode = r.StatusCode
-		if _, err := ioutil.ReadAll(r.Body); err == nil {
+		f.ContentLength = r.ContentLength
+		if b, err := ioutil.ReadAll(r.Body); err == nil {
+			if f.ContentLength < 0 {
+				f.ContentLength = int64(len(b))
+			}
 			r.Body.Close()
 		} else {
 			log.Println("ReadAll err:", err)
 		}
-		f.ContentLength = r.ContentLength
 	}
 }
 
 func (f *Fetch) Put() error {
 	_, err := DB.PutItem("fetch", DB.ToItem(f), nil)
 	return err
-}
-
-func (req *FetchRequest) Put() error {
-	_, err := DB.PutItem("fetchrequest", DB.ToItem(req), nil)
-	return err
-}
-
-func (req *FetchRequest) Update() error {
-	return req.Put()
 }
 
 var options = url.Values{"TopicArn": []string{"arn:aws:sns:us-east-1:966103638140:ginger-test"}}
@@ -116,26 +92,6 @@ func (c *Ginger) Add(URL string, requestedBy string) error {
 		return err
 	}
 	return nil
-}
-
-func (c *Ginger) Items() (fetch []*FetchRequest) {
-	response, err := DB.Scan("fetchrequest", nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-	for _, i := range response.Items {
-		fetch = append(fetch, DB.FromItem("fetchrequest", i).(*FetchRequest))
-	}
-	return
-}
-
-func (c *Ginger) Requested() (requested []*FetchRequest) {
-	for _, fetch := range c.Items() {
-		if fetch.RequestedOn != "" {
-			requested = append(requested, fetch)
-		}
-	}
-	return
 }
 
 func (c *Ginger) Fetched() (fetch []*Fetch) {
@@ -170,7 +126,7 @@ func NewMemoryGinger(dynamo bool) *Ginger {
 	}
 
 	// wait until all tables are active
-	for _, name := range []string{"fetchrequest", "fetch"} {
+	for _, name := range []string{"fetch"} {
 		for {
 			if description, err := DB.DescribeTable(name, nil); err != nil {
 				log.Println("DescribeTable err:", err)
@@ -206,37 +162,4 @@ func (m *Ginger) WaitStateChanged() {
 	c.L.Lock()
 	c.Wait()
 	c.L.Unlock()
-}
-
-func Qer(requests queue.Queue) {
-	response, err := DB.Scan("fetchrequest", nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-	for _, i := range response.Items {
-		requests.Send(DB.FromItem("fetchrequest", i).(*FetchRequest))
-	}
-}
-
-func Worker(requests queue.Queue) {
-	for {
-		var fetchrequest FetchRequest
-		err := requests.Receive(&fetchrequest)
-		if err != nil {
-			log.Println("Done fetching")
-			break
-		}
-		r, err := http.Get(fetchrequest.URL)
-		if err != nil {
-			log.Fatal(err)
-		}
-		if fetch, err := NewFetch(fetchrequest.URL); err == nil {
-			fetch.StatusCode = r.StatusCode
-			fetch.ContentLength = r.ContentLength
-			DB.PutItem("fetch", DB.ToItem(fetch), nil)
-		} else {
-			log.Println(err)
-		}
-		DB.DeleteItem("fetchrequest", DB.ToKey(&fetchrequest), nil)
-	}
 }

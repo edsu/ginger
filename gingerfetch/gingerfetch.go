@@ -21,7 +21,7 @@ func fetcher(q *sqs.Queue) {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	for {
 	receiveMessage:
-		delay := 30 + r.Intn(100)
+		delay := 300 + r.Intn(100)
 		resp, err := q.ReceiveMessage([]string{"All"}, 1, delay)
 		if err != nil {
 			log.Println("Error receiving message:", err)
@@ -45,6 +45,7 @@ func fetcher(q *sqs.Queue) {
 				if f, err := ginger.NewFetch(url); err == nil {
 					if f.NumFetchesLast(time.Second) < 1 {
 						f.Fetch()
+						log.Println("fetched:", url)
 						count += 1
 						const N = 100
 						if count%N == 0 {

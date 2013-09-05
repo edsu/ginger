@@ -5,31 +5,27 @@
     <title>{{if .Found}}{{with .Title}}{{.}} « {{end}}Ginger{{else}}Not Found{{end}}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="/css/ginger.min.css" rel="stylesheet">
-    <style>
-      body {
-        padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */
-      }
-    </style>
   </head>
   <body>
-    <div class="navbar navbar-fixed-top">
-      <div class="container">
-	<!-- .navbar-toggle is used as the toggle for collapsed navbar content -->
-	<button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-responsive-collapse">
-	  <span class="icon-bar"></span>
-	  <span class="icon-bar"></span>
-	  <span class="icon-bar"></span>
-	</button>
-	<a class="navbar-brand" href="/">Ginger</a>
-	<!-- Place everything within .navbar-collapse to hide it until above 768px -->
-	<div class="nav-collapse collapse navbar-responsive-collapse">
-	  <ul class="nav navbar-nav">
-              <li><a href="/">Home</a></li>
-	  </ul>
-	</div><!-- /.nav-collapse -->
-      </div>
-    </div>
+
     <div class="container">
+
+      <div class="navbar navbar-default">
+	<div class="navbar-header">
+          <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+	  <a class="navbar-brand" href="/">Ginger</a>
+	</div>
+	<div class="navbar-collapse collapse">
+          <ul class="nav navbar-nav">
+            <li><a href="/">Home</a></li>
+          </ul>
+	</div>
+      </div>
+
       {{if .Found}}{{template "content" .}}{{else}}<h1>Not Found</h1>{{end}}
     </div>    
     <script>

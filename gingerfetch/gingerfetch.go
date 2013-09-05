@@ -15,6 +15,29 @@ import (
 	"launchpad.net/~prudhvikrishna/goamz/sqs"
 )
 
+var gingerfetch, gingerfetchthrottled chan int
+
+func init() {
+	gingerfetch = make(chan int, 1024)
+	go func() {
+		for n := range gingerfetch {
+			if err := stathat.PostEZCount("gingerfetch", "eikeon@eikeon.com", n); err != nil {
+				log.Println("error posting gingerfetch count")
+			}
+
+		}
+	}()
+
+	gingerfetchthrottled = make(chan int, 1024)
+	go func() {
+		for n := range gingerfetchthrottled {
+			if err := stathat.PostEZCount("gingerfetch (throttled)", "eikeon@eikeon.com", n); err != nil {
+				log.Println("error posting gingerfetch (throttled) count")
+			}
+		}
+	}()
+}
+
 func fetcher(q *sqs.Queue) {
 	count := 0
 	count_throttled := 0
@@ -49,7 +72,7 @@ func fetcher(q *sqs.Queue) {
 						count += 1
 						const N = 100
 						if count%N == 0 {
-							go stathat.PostEZCount("gingerfetch", "eikeon@eikeon.com", N)
+							gingerfetch <- N
 						}
 						if err := f.Put(); err != nil {
 							log.Println("Error putting fetch:", err)
@@ -66,7 +89,7 @@ func fetcher(q *sqs.Queue) {
 						log.Println("throttling:", url)
 						const N = 100
 						if count_throttled%N == 0 {
-							go stathat.PostEZCount("gingerfetch (throttled)", "eikeon@eikeon.com", N)
+							gingerfetchthrottled <- N
 						}
 
 					}

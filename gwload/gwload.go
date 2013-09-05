@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/eikeon/ginger"
 	"github.com/stathat/go"
@@ -45,8 +46,17 @@ func sendUrls(urls chan string, name string) {
 	count := 0
 	for url := range urls {
 		count += 1
+		retryCount := 0
+	retryAdd:
 		if err := g.Add(url, name); err != nil {
-			log.Println("error:", err)
+			time.Sleep(time.Second)
+			retryCount += 1
+			if retryCount < 120 {
+				log.Println("error:", err, "retrying")
+				goto retryAdd
+			} else {
+				log.Println("error:", err, "hit max retry... giving up.")
+			}
 		}
 		if count%1000 == 0 {
 			stathat.PostEZCount("gingerload", "eikeon@eikeon.com", 1000)

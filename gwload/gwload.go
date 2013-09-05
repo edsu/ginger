@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 
@@ -22,7 +23,12 @@ func readUrls(urls chan string) {
 		} else if err == nil {
 			cols := strings.Split(string(line), "\t")
 			if len(cols) == 3 {
-				urls <- cols[2]
+				u := cols[2]
+				if u, err := url.Parse(URL); err == nil {
+					urls <- u
+				} else {
+					log.Println("Could not parse:", u)
+				}
 			}
 		} else if err == io.EOF {
 			break

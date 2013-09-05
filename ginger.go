@@ -160,19 +160,12 @@ func NewMemoryGinger(dynamo bool) *Ginger {
 	} else {
 		DB = dynamodb.NewMemoryDB()
 	}
-	fetchrequest, err := DB.Register("fetchrequest", (*FetchRequest)(nil))
-	if err != nil {
-		panic(err)
-	}
 	fetch, err := DB.Register("fetch", (*Fetch)(nil))
 	if err != nil {
 		panic(err)
 	}
-	pt := dynamodb.ProvisionedThroughput{ReadCapacityUnits: 1024, WriteCapacityUnits: 1024}
-	if _, err := DB.CreateTable("fetchrequest", fetchrequest.AttributeDefinitions, fetchrequest.KeySchema, pt, nil); err != nil {
-		log.Println(err)
-	}
-	if _, err := DB.CreateTable("fetch", fetch.AttributeDefinitions, fetch.KeySchema, dynamodb.ProvisionedThroughput{ReadCapacityUnits: 1, WriteCapacityUnits: 1}, nil); err != nil {
+	pt := dynamodb.ProvisionedThroughput{ReadCapacityUnits: 8192, WriteCapacityUnits: 8192}
+	if _, err := DB.CreateTable("fetch", fetch.AttributeDefinitions, fetch.KeySchema, pt, nil); err != nil {
 		log.Println(err)
 	}
 

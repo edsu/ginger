@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/url"
 	"os"
 	"runtime"
 	"strings"
@@ -24,7 +25,7 @@ func readUrls(urls chan string) {
 			cols := strings.Split(string(line), "\t")
 			if len(cols) == 3 {
 				u := cols[2]
-				if u, err := url.Parse(URL); err == nil {
+				if _, err := url.Parse(u); err == nil {
 					urls <- u
 				} else {
 					log.Println("Could not parse:", u)

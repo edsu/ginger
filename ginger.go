@@ -63,6 +63,7 @@ func (f *Fetch) Fetch() {
 		ResponseHeaderTimeout: time.Second * 60,
 	}
 	req, err := http.NewRequest("GET", f.URL, nil)
+	req.Header.Set("User-Agent", "ginger/0.1 (+http://github.com/eikeon/ginger)")
 	if err != nil {
 		f.Error = err.Error()
 	}
